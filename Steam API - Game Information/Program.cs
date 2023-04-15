@@ -7,7 +7,7 @@ namespace SteamGameInfoRetriever
 {
     class Program
     {
-        private static readonly string appId = "435150"; // Divinity 2: Original Sin AppID
+        private static readonly string appId = "294100"; // Rimworld
         private static readonly HttpClient httpClient = new HttpClient();
 
         static async Task Main(string[] args)
@@ -15,7 +15,7 @@ namespace SteamGameInfoRetriever
             try
             {
                 string gameInfoJson = await GetGameInfoAsync(appId);
-                Console.WriteLine("Game information for Divinity 2: Original Sin:");
+                Console.WriteLine("Game information for Rimworld:");
                 Console.WriteLine(gameInfoJson);
                 Console.ReadLine();
             }
