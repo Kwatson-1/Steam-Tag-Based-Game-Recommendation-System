@@ -20,3 +20,14 @@ C:\Users\Kyle\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\Steam 
 C:\Users\Kyle\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\Steam API - Game Information\obj\Debug\Steam API Test.csproj.CopyComplete
 C:\Users\Kyle\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\Steam API - Game Information\obj\Debug\Steam API Test.exe
 C:\Users\Kyle\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\Steam API - Game Information\obj\Debug\Steam API Test.pdb
+C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\Steam API - Game Information\bin\Debug\Steam API Test.exe.config
+C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\Steam API - Game Information\bin\Debug\Steam API Test.exe
+C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\Steam API - Game Information\bin\Debug\Steam API Test.pdb
+C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\Steam API - Game Information\bin\Debug\Newtonsoft.Json.dll
+C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\Steam API - Game Information\bin\Debug\Newtonsoft.Json.xml
+C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\Steam API - Game Information\obj\Debug\Steam API Test.csproj.AssemblyReference.cache
+C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\Steam API - Game Information\obj\Debug\Steam API Test.csproj.SuggestedBindingRedirects.cache
+C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\Steam API - Game Information\obj\Debug\Steam API Test.csproj.CoreCompileInputs.cache
+C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\Steam API - Game Information\obj\Debug\Steam API Test.csproj.CopyComplete
+C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\Steam API - Game Information\obj\Debug\Steam API Test.exe
+C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\Steam API - Game Information\obj\Debug\Steam API Test.pdb
