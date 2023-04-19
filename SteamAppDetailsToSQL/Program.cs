@@ -8,6 +8,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 
 /* 
@@ -29,14 +30,19 @@ namespace SteamAppDetailsToSQL
     {
         public static async Task Main(string[] args)
         {
-            List<SteamApps> games = await GetSteamAppsAsync();
-            string outputPath = "steam_games.csv";
-            SaveSteamAppsToCsv(games, outputPath);
-
-            Console.WriteLine($"Saved {games.Count} games to {outputPath}");
+            //List<SteamApps> games = await GetSteamAppsAsync();
+            //string outputPath = "steam_games.csv";
+            //SaveSteamAppsToCsv(games, outputPath);
+            //Console.WriteLine($"Saved {games.Count} games to {outputPath}");
+            var test = GetSteamAppsFromCsv();
+            foreach (var app in test)
+            {
+                Console.WriteLine(app.ToString());
+            }
+            Console.ReadLine();
         }
         // Returns the App List from the Steam API endpoint.
-        public static async Task<List<SteamApps>> GetSteamAppsAsync()
+        public static async Task<List<SteamApp>> GetSteamAppsAsync()
         {
             using var httpClient = new HttpClient();
             string url = "https://api.steampowered.com/ISteamApps/GetAppList/v2/";
@@ -45,21 +51,62 @@ namespace SteamAppDetailsToSQL
             JObject jsonResponse = JObject.Parse(response);
             JArray appsArray = (JArray)jsonResponse["applist"]["apps"];
 
-            List<SteamApps> appList = appsArray.ToObject<List<SteamApps>>();
+            List<SteamApp> appList = appsArray.ToObject<List<SteamApp>>();
             return appList;
         }
-        // Saves
-        public static void SaveSteamAppsToCsv(List<SteamApps> apps, string filePath)
+        // Writes the Steam apps list to a CSV file.
+        public static void SaveSteamAppsToCsv(List<SteamApp> apps, string filePath)
         {
             using var writer = new StreamWriter(filePath);
             using var csv = new CsvWriter(writer, CultureInfo.InvariantCulture);
             csv.WriteRecords(apps);
         }
+        // Reads the Steam apps from the CSV file into a List of Class 'SteamApps'.
+        // CSV file may require manual removal of records that are not in the correct format due to testing by the Steam development team.
+        public static List<SteamApp> GetSteamAppsFromCsv()
+        {
+            List<SteamApp> steamApps = new List<SteamApp>();
+            using (StreamReader sr = new StreamReader("steam_games.csv"))
+            {
+                string line;
+                while ((line = sr.ReadLine()) != null)
+                {
+                    string[] values = line.Split(',');
+
+                    if (values.Length < 2)
+                    {
+                        continue; // Skip the line if it does not have at least two values.
+                    }
+
+                    if (int.TryParse(values[0], out int appId) && !string.IsNullOrEmpty(values[1]))
+                    {
+                        string name = values[1].Trim(); // Trim any whitespace around the name.
+                        SteamApp app = new SteamApp(appId, name);
+                        steamApps.Add(app);
+                    }
+                }
+            }
+            return steamApps;
+        }
     }
-    public class SteamApps
+    
+
+    // SteamApps Class which stores app ID and name for the GetSteamApps Steam endpoint
+    public class SteamApp
     {
         public int appId { get; set; }
         public string name { get; set; }
+
+        public SteamApp(int appId, string name)
+        {
+            this.appId = appId;
+            this.name = name;
+        }
+        public override string ToString()
+        {
+            return $"SteamApp(AppId={appId}, GameName='{name}')";
+        }
     }
+
 }
 
