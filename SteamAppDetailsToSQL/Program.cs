@@ -15,9 +15,9 @@ using System.Xml.Linq;
 Developer: Kyle Watson
 Date: 18/04/2023
 Project Tasks/Goals
-    1. Program will fetch a list of all Steam apps which includes their name and ID from the Steam API using the GetSteamGamesAsync endpoint. 
-    2. Stores the information in a CSV file for backup purposes and to minimize api calls.
-    3. AppIDs are then pulled from the CSV file and stored in a List.
+    /1. Program will fetch a list of all Steam apps which includes their name and ID from the Steam API using the GetSteamGamesAsync endpoint. 
+    /2. Stores the information in a CSV file for backup purposes and to minimize api calls.
+    /3. AppIDs are then pulled from the CSV file and stored in a List.
     4. The List is then looped through to pull the AppID which is then used in a call to the Steam API using the GetGameDetailsAsync endpoint.
     4a. Use Task.Delay to introduce a delay between each call to avoid potential issues or bans.
     5. Game information is stored in a JSON file for backup purposes and to minimize api calls.
@@ -34,12 +34,8 @@ namespace SteamAppDetailsToSQL
             //string outputPath = "steam_games.csv";
             //SaveSteamAppsToCsv(games, outputPath);
             //Console.WriteLine($"Saved {games.Count} games to {outputPath}");
-            var test = GetSteamAppsFromCsv();
-            foreach (var app in test)
-            {
-                Console.WriteLine(app.ToString());
-            }
-            Console.ReadLine();
+
+            List<SteamApp> appList = GetSteamAppsFromCsv();
         }
         // Returns the App List from the Steam API endpoint.
         public static async Task<List<SteamApp>> GetSteamAppsAsync()
@@ -88,10 +84,14 @@ namespace SteamAppDetailsToSQL
             }
             return steamApps;
         }
+        // Call of the GetAppDetails endpoint by iterating through each app ID in the app ID List of Class.
+        public static Task<List<>>
+
+
     }
     
 
-    // SteamApps Class which stores app ID and name for the GetSteamApps Steam endpoint
+    // SteamApps Class which stores app ID and name from the GetSteamApps Steam endpoint
     public class SteamApp
     {
         public int appId { get; set; }
@@ -106,6 +106,87 @@ namespace SteamAppDetailsToSQL
         {
             return $"SteamApp(AppId={appId}, GameName='{name}')";
         }
+    }
+
+
+    // Steam App Details
+    public class Game
+    {
+        public int Id { get; set; }
+        public int SteamAppId { get; set; }
+        public string Name { get; set; }
+        public bool IsFree { get; set; }
+        public string DetailedDescription { get; set; }
+        public string AboutTheGame { get; set; }
+        public string ShortDescription { get; set; }
+        public string HeaderImage { get; set; }
+        public DateTime ReleaseDate { get; set; }
+        public int TotalRecommendations { get; set; }
+    }
+
+    public class Developer
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+    }
+
+    public class Publisher
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+    }
+
+    public class GameDeveloper
+    {
+        public int GameId { get; set; }
+        public int DeveloperId { get; set; }
+    }
+
+    public class GamePublisher
+    {
+        public int GameId { get; set; }
+        public int PublisherId { get; set; }
+    }
+
+    public class Platform
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+    }
+
+    public class GamePlatform
+    {
+        public int GameId { get; set; }
+        public int PlatformId { get; set; }
+    }
+
+    public class PriceOverview
+    {
+        public int Id { get; set; }
+        public int GameId { get; set; }
+        public string Currency { get; set; }
+        public int DiscountPercent { get; set; }
+        public string FinalFormatted { get; set; }
+    }
+
+    public class Screenshot
+    {
+        public int Id { get; set; }
+        public int GameId { get; set; }
+        public string PathThumbnail { get; set; }
+        public string PathFull { get; set; }
+    }
+
+    public class Movie
+    {
+        public int Id { get; set; }
+        public int GameId { get; set; }
+        public string Name { get; set; }
+        public string Thumbnail { get; set; }
+        public string Webm480 { get; set; }
+        public string WebmMax { get; set; }
+        public string Mp4480 { get; set; }
+        public string Mp4Max { get; set; }
     }
 
 }
