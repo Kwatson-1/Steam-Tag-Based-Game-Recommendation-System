@@ -11,7 +11,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Newtonsoft.Json.Converters;
-using System.Text.Json.Serialization;
 
 
 /* 
@@ -39,12 +38,7 @@ namespace SteamAppDetailsToSQL
             //SaveSteamAppsToCsv(games, outputPath);
             //Console.WriteLine($"Saved {games.Count} games to {outputPath}");
 
-            //List<SteamApp> appList = GetSteamAppsFromCsv();
-            int appId = 294100; // Replace with the desired app ID
-            var data = await FetchAppDetailsAsync(appId);
-            Console.WriteLine(data.ToString());
-            Console.ReadLine();
-
+            List<SteamApp> appList = GetSteamAppsFromCsv();
         }
         #region App List Methods
         // Returns the App List from the Steam API endpoint.
@@ -95,45 +89,8 @@ namespace SteamAppDetailsToSQL
             return steamApps;
         }
         #endregion
-
-        public static async Task<MergeClass> FetchAppDetailsAsync(int appId)
-        {
-            string steamAppDetailsUrl = $"https://store.steampowered.com/api/appdetails?appids={appId}";
-            string steamAppReviewUrl = $"https://store.steampowered.com/appreviews/{appId}?json=1";
-
-
-            using HttpClient httpClient = new HttpClient();
-
-            HttpResponseMessage detailsResponse = await httpClient.GetAsync(steamAppDetailsUrl);
-            string jsonDetailsResponse = await detailsResponse.Content.ReadAsStringAsync();
-            string jsonDetailsResponseInner = ExtractInnerJson(jsonDetailsResponse);
-            HttpResponseMessage reviewResponse = await httpClient.GetAsync(steamAppReviewUrl);
-            string jsonReviewResponse = await reviewResponse.Content.ReadAsStringAsync();
-
-            // Deserialize the JSON response
-
-            DetailsRoot myDeserializedDetailsClass = JsonConvert.DeserializeObject<DetailsRoot>(jsonDetailsResponseInner);
-            ReviewRoot myDeserializedReviewClass = JsonConvert.DeserializeObject<ReviewRoot>(jsonReviewResponse);
-
-            MergeClass mergedAppData = new MergeClass(myDeserializedDetailsClass, myDeserializedReviewClass);
-
-            return mergedAppData;
-        }
-
-        public static string ExtractInnerJson(string jsonString)
-        {
-            JObject outerObject = JObject.Parse(jsonString);
-            JProperty firstProperty = outerObject.Properties().FirstOrDefault();
-            if (firstProperty != null)
-            {
-                JObject innerObject = (JObject)firstProperty.Value;
-                return innerObject.ToString();
-            }
-
-            return null;
-        }
     }
-    #region GetSteamApps Class
+
     // SteamApps Class which stores app ID and name from the GetSteamApps Steam endpoint
     public class SteamApp
     {
@@ -150,294 +107,181 @@ namespace SteamAppDetailsToSQL
             return $"SteamApp(AppId={appId}, GameName='{name}')";
         }
     }
-    #endregion
 
-    // Merge Class
-
-    public class MergeClass
+    #region Deserialisation Classes
+    // Steam App Details Class for deserialisations
+    public class JsonResponse
     {
-
-        public DetailsRoot DetailsObject { get; set; }
-
-        public ReviewRoot ReviewObject { get; set; }
-        public MergeClass(DetailsRoot dR, ReviewRoot rR)
-        {
-
-            DetailsObject = dR;
-            ReviewObject = rR;
-        }
-    }
-
-
-    // Review Classes
-        public class ReviewRoot
-        {
-            [JsonProperty("success")]
-            public int Success { get; set; }
-
-            [JsonProperty("query_summary")]
-            public QuerySummary QuerySummary { get; set; }
-        }
-        public class QuerySummary
-        {
-            [JsonProperty("num_reviews")]
-            public int NumReviews { get; set; }
-
-            [JsonProperty("review_score")]
-            public int ReviewScore { get; set; }
-
-            [JsonProperty("review_score_desc")]
-            public string ReviewScoreDesc { get; set; }
-
-            [JsonProperty("total_positive")]
-            public int TotalPositive { get; set; }
-
-            [JsonProperty("total_negative")]
-            public int TotalNegative { get; set; }
-
-            [JsonProperty("total_reviews")]
-            public int TotalReviews { get; set; }
-        }
-
-
-
-    // Details Classes
-    public class DetailsRoot
-    {
-        [JsonProperty("success")]
-        public bool Success { get; set; }
-
-        [JsonProperty("data")]
-        public Data Data { get; set; }
-    }
-
-    public class Data
-    {
+        // Table Game
         [JsonProperty("type")]
-        public string Type { get; set; }
-
+        private string Type;
         [JsonProperty("name")]
-        public string Name { get; set; }
-
+        private string Name;
         [JsonProperty("steam_appid")]
-        public int SteamAppid { get; set; }
-
-        [JsonProperty("required_age")]
-        public int RequiredAge { get; set; }
-
+        private int Steamappid;
         [JsonProperty("is_free")]
-        public bool IsFree { get; set; }
-
-
+        private bool IsFree;
         [JsonProperty("detailed_description")]
-        public string DetailedDescription { get; set; }
-
+        private string DetailedDescription;
         [JsonProperty("about_the_game")]
-        public string AboutTheGame { get; set; }
-
+        private string AboutTheGame;
         [JsonProperty("short_description")]
-        public string ShortDescription { get; set; }
-
+        private string ShortDescription;
         [JsonProperty("supported_languages")]
-        public string SupportedLanguages { get; set; }
-
+        private string SupportedLanguages;
         [JsonProperty("header_image")]
-        public string HeaderImage { get; set; }
-
-        [JsonProperty("website")]
-        public string Website { get; set; }
-
-        [JsonProperty("pc_requirements")]
-        public PcRequirements PcRequirements { get; set; }
-
-        [JsonProperty("mac_requirements")]
-        public MacRequirements MacRequirements { get; set; }
-
-        [JsonProperty("linux_requirements")]
-        public LinuxRequirements LinuxRequirements { get; set; }
-
-        [JsonProperty("developers")]
-        public List<string> Developers { get; set; }
-
-        [JsonProperty("publishers")]
-        public List<string> Publishers { get; set; }
-
-        [JsonProperty("price_overview")]
-        public PriceOverview PriceOverview { get; set; }
-
-
-        [JsonProperty("platforms")]
-        public Platforms Platforms { get; set; }
-
-        [JsonProperty("metacritic")]
-        public Metacritic Metacritic { get; set; }
-
-        [JsonProperty("screenshots")]
-        public List<Screenshot> Screenshots { get; set; }
-
-        [JsonProperty("movies")]
-        public List<Movie> Movies { get; set; }
-
-        [JsonProperty("recommendations")]
-        public Recommendations Recommendations { get; set; }
-
+        private string HeaderImage;
+        [JsonProperty("website)")]
+        private string Webiste;
         [JsonProperty("release_date")]
-        public ReleaseDate ReleaseDate { get; set; }
+        private ReleaseDate ReleaseDate;
 
+        // Table PC_Requirements
+        [JsonProperty("pc_requirements")]
+        private Requirements PcRequirements;
+        [JsonProperty("mac_requirements")]
+        private Requirements MacRequirements;
+        [JsonProperty("linux_requirements")]
+        private Requirements LinuxRequirements;
+
+        // Table Developer
+        [JsonProperty("developers")]
+        private List<string> Developers;
+
+        // Table Publisher
+        [JsonProperty("publishers")]
+        private List<string> Publishers;
+
+        // Table Price_Overview
+        [JsonProperty("price_overview")]
+        private Price PriceOverview;
+
+        // Table Platform
+        [JsonProperty("platforms")]
+        private Platform Platforms;
+
+        // Table Metacritic
+        [JsonProperty("metacritic")]
+        private Metacritic Metacritic;
+
+        // Table Screenshot
+        [JsonProperty("screenshots")]
+        private List<Screenshot> Screenshots;
+
+        // Table Movie
+        [JsonProperty("movies")]
+        private Movie Movie;
+
+        // Recommendations
+        [JsonProperty("recommendations")]
+        private ReviewScore ReviewScores;
+
+        // Table Support_Info
         [JsonProperty("support_info")]
-        public SupportInfo SupportInfo { get; set; }
+        private SupportInfo SupportInfo;
 
+        // Table Background
         [JsonProperty("background")]
-        public string Background { get; set; }
-
+        private string background;
         [JsonProperty("background_raw")]
-        public string BackgroundRaw { get; set; }
-
+        private string backgroundRaw;
     }
 
-
-    public class LinuxRequirements
+    public class Requirements
     {
         [JsonProperty("minimum")]
-        public string Minimum { get; set; }
+        private string minimum;
     }
 
-    public class MacRequirements
+    public class Price
     {
-        [JsonProperty("minimum")]
-        public string Minimum { get; set; }
+        [JsonProperty("currency")]
+        private string currency;
+        [JsonProperty("discount_percent")]
+        private int discountPercent;
+        [JsonProperty("final_formatted")]
+        private string final_formatted;
     }
 
+    public class Platform
+    {
+        [JsonProperty("windows")]
+        private Boolean windows;
+        [JsonProperty("mac")]
+        private Boolean mac;
+        [JsonProperty("linux")]
+        private Boolean linux;
+    }
     public class Metacritic
     {
         [JsonProperty("score")]
-        public int Score { get; set; }
-
+        private int score;
         [JsonProperty("url")]
-        public string Url { get; set; }
+        private string url;
     }
-
-    public class Movie
-    {
-        [JsonProperty("id")]
-        public int Id { get; set; }
-
-        [JsonProperty("name")]
-        public string Name { get; set; }
-
-        [JsonProperty("thumbnail")]
-        public string Thumbnail { get; set; }
-
-        [JsonProperty("webm")]
-        public Webm Webm { get; set; }
-
-        [JsonProperty("mp4")]
-        public Mp4 Mp4 { get; set; }
-
-        [JsonProperty("highlight")]
-        public bool Highlight { get; set; }
-    }
-
-    public class Mp4
-    {
-        [JsonProperty("480")]
-        public string _480 { get; set; }
-
-        [JsonProperty("max")]
-        public string Max { get; set; }
-    }
-
-
-
-    public class PcRequirements
-    {
-        [JsonProperty("minimum")]
-        public string Minimum { get; set; }
-    }
-
-    public class Platforms
-    {
-        [JsonProperty("windows")]
-        public bool Windows { get; set; }
-
-        [JsonProperty("mac")]
-        public bool Mac { get; set; }
-
-        [JsonProperty("linux")]
-        public bool Linux { get; set; }
-    }
-
-    public class PriceOverview
-    {
-        [JsonProperty("currency")]
-        public string Currency { get; set; }
-
-        [JsonProperty("initial")]
-        public int Initial { get; set; }
-
-        [JsonProperty("final")]
-        public int Final { get; set; }
-
-        [JsonProperty("discount_percent")]
-        public int DiscountPercent { get; set; }
-
-        [JsonProperty("initial_formatted")]
-        public string InitialFormatted { get; set; }
-
-        [JsonProperty("final_formatted")]
-        public string FinalFormatted { get; set; }
-    }
-
-    public class Recommendations
-    {
-        [JsonProperty("total")]
-        public int Total { get; set; }
-    }
-
-    public class ReleaseDate
-    {
-        [JsonProperty("coming_soon")]
-        public bool ComingSoon { get; set; }
-
-        [JsonProperty("date")]
-        public string Date { get; set; }
-    }
-
-
     public class Screenshot
     {
         [JsonProperty("id")]
-        public int Id { get; set; }
-
+        private int id;
         [JsonProperty("path_thumbnail")]
-        public string PathThumbnail { get; set; }
-
+        private string pathThumbnail;
         [JsonProperty("path_full")]
-        public string PathFull { get; set; }
+        private string pathFull;
     }
-
-
+    public class Movie
+    {
+        [JsonProperty("id")]
+        private int movieId;
+        [JsonProperty("name")]
+        private string name;
+        [JsonProperty("thumbnail")]
+        private string thumbnail;
+        [JsonProperty("webm")]
+        private WebmData webm;
+        [JsonProperty("mp4")]
+        private Mp4Data mp4;
+        [JsonProperty("highlight")]
+        private Boolean highlight;
+    }
+    public class WebmData
+    {
+        [JsonProperty("480")]
+        private string _480;
+        [JsonProperty("max")]
+        private string max;
+    }
+    public class Mp4Data
+    {
+        [JsonProperty("480")]
+        private string _480;
+        [JsonProperty("max")]
+        private string max;
+    }
+    public class ReviewScore
+    {
+        [JsonProperty("review_score_desc")]
+        private string reviewScoreDesc;
+        [JsonProperty("total_reviews")]
+        private int totalReviews;
+        [JsonProperty("total_positive")]
+        private int totalPositive;
+        [JsonProperty("total_negative")]
+        private int totalNegative;
+    }
+    public class ReleaseDate
+    {
+        [JsonProperty("date")]
+        private string date;
+    }
 
     public class SupportInfo
     {
         [JsonProperty("url")]
-        public string Url { get; set; }
-
+        private string url;
         [JsonProperty("email")]
-        public string Email { get; set; }
+        private string email;
     }
-
-    public class Webm
-    {
-        [JsonProperty("480")]
-        public string _480 { get; set; }
-
-        [JsonProperty("max")]
-        public string Max { get; set; }
-    }
-
-
-
+    #endregion
 }
 
     
