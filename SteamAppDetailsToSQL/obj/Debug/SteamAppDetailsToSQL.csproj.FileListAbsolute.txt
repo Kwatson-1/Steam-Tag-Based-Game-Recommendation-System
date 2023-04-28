@@ -25,9 +25,3 @@ C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\Steam
 C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\SteamAppDetailsToSQL\obj\Debug\SteamAppDetailsToSQL.csproj.CopyComplete
 C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\SteamAppDetailsToSQL\obj\Debug\SteamAppDetailsToSQL.exe
 C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\SteamAppDetailsToSQL\obj\Debug\SteamAppDetailsToSQL.pdb
-C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\SteamAppDetailsToSQL\bin\Debug\System.Text.Encodings.Web.dll
-C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\SteamAppDetailsToSQL\bin\Debug\System.Text.Json.dll
-C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\SteamAppDetailsToSQL\bin\Debug\System.ValueTuple.dll
-C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\SteamAppDetailsToSQL\bin\Debug\System.Text.Encodings.Web.xml
-C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\SteamAppDetailsToSQL\bin\Debug\System.Text.Json.xml
-C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\SteamAppDetailsToSQL\bin\Debug\System.ValueTuple.xml
