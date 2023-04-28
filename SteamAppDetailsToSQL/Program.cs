@@ -157,14 +157,14 @@ namespace SteamAppDetailsToSQL
     public class MergeClass
     {
 
-        public DetailsRoot DR { get; set; }
+        public DetailsRoot DetailsObject { get; set; }
 
-        public ReviewRoot RR { get; set; }
+        public ReviewRoot ReviewObject { get; set; }
         public MergeClass(DetailsRoot dR, ReviewRoot rR)
         {
 
-            DR = dR;
-            RR = rR;
+            DetailsObject = dR;
+            ReviewObject = rR;
         }
     }
 
