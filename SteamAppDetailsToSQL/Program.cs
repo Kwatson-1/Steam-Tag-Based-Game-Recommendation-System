@@ -12,6 +12,8 @@ using System.Threading.Tasks;
 using System.Xml.Linq;
 using Newtonsoft.Json.Converters;
 using System.Text.Json.Serialization;
+using System.Data.SqlClient;
+
 
 
 /* 
@@ -41,8 +43,9 @@ namespace SteamAppDetailsToSQL
 
             //List<SteamApp> appList = GetSteamAppsFromCsv();
             int appId = 294100; // Replace with the desired app ID
-            var data = await FetchAppDetailsAsync(appId);
-            Console.WriteLine(data.ToString());
+            var details = await FetchAppDetailsAsync(appId);
+            var reviews = await FetchAppReviewsAsync(appId);
+            MergedData
             Console.ReadLine();
 
         }
@@ -96,10 +99,10 @@ namespace SteamAppDetailsToSQL
         }
         #endregion
 
-        public static async Task<MergeClass> FetchAppDetailsAsync(int appId)
+        // Returns a deserialized response from the Steam app details API
+        public static async Task <DetailsRoot> FetchAppDetailsAsync(int appId)
         {
             string steamAppDetailsUrl = $"https://store.steampowered.com/api/appdetails?appids={appId}";
-            string steamAppReviewUrl = $"https://store.steampowered.com/appreviews/{appId}?json=1";
 
 
             using HttpClient httpClient = new HttpClient();
@@ -107,60 +110,74 @@ namespace SteamAppDetailsToSQL
             HttpResponseMessage detailsResponse = await httpClient.GetAsync(steamAppDetailsUrl);
             string jsonDetailsResponse = await detailsResponse.Content.ReadAsStringAsync();
             string jsonDetailsResponseInner = ExtractInnerJson(jsonDetailsResponse);
+
+            // Deserialize the JSON response
+
+            DetailsRoot myDeserializedDetailsClass = JsonConvert.DeserializeObject<DetailsRoot>(jsonDetailsResponseInner);
+
+            return myDeserializedDetailsClass;
+        }
+        // Returns a deserialized response from the Steam app reviews API
+        public static async Task <ReviewRoot> FetchAppReviewsAsync(int appId)
+        {
+            string steamAppReviewUrl = $"https://store.steampowered.com/appreviews/{appId}?json=1";
+
+
+            using HttpClient httpClient = new HttpClient();
+
             HttpResponseMessage reviewResponse = await httpClient.GetAsync(steamAppReviewUrl);
             string jsonReviewResponse = await reviewResponse.Content.ReadAsStringAsync();
 
             // Deserialize the JSON response
 
-            DetailsRoot myDeserializedDetailsClass = JsonConvert.DeserializeObject<DetailsRoot>(jsonDetailsResponseInner);
             ReviewRoot myDeserializedReviewClass = JsonConvert.DeserializeObject<ReviewRoot>(jsonReviewResponse);
 
-            MergeClass mergedAppData = new MergeClass(myDeserializedDetailsClass, myDeserializedReviewClass);
-
-            return mergedAppData;
+            return myDeserializedReviewClass;
         }
-
         public static string ExtractInnerJson(string jsonString)
         {
             JObject outerObject = JObject.Parse(jsonString);
             JProperty firstProperty = outerObject.Properties().FirstOrDefault();
-            if (firstProperty != null)
-            {
-                JObject innerObject = (JObject)firstProperty.Value;
-                return innerObject.ToString();
-            }
 
-            return null;
+            // If the inner object is null, return
+            if (firstProperty == null)
+            {
+                return null;
+            }
+            JObject innerObject = (JObject)firstProperty.Value;
+            return innerObject.ToString();
+
         }
+
     }
     #region GetSteamApps Class
     // SteamApps Class which stores app ID and name from the GetSteamApps Steam endpoint
     public class SteamApp
     {
-        public int appId { get; set; }
-        public string name { get; set; }
+        public int AppId { get; set; }
+        public string Name { get; set; }
 
         public SteamApp(int appId, string name)
         {
-            this.appId = appId;
-            this.name = name;
+            this.AppId = appId;
+            this.Name = name;
         }
         public override string ToString()
         {
-            return $"SteamApp(AppId={appId}, GameName='{name}')";
+            return $"SteamApp(AppId={AppId}, GameName='{Name}')";
         }
     }
     #endregion
 
-    // Merge Class
+    // Merge Class - combines both deserialized API endpoints into a single object to allow a single return
 
-    public class MergeClass
+    public class MergedData
     {
 
         public DetailsRoot DetailsObject { get; set; }
 
         public ReviewRoot ReviewObject { get; set; }
-        public MergeClass(DetailsRoot dR, ReviewRoot rR)
+        public MergedData(DetailsRoot dR, ReviewRoot rR)
         {
 
             DetailsObject = dR;
@@ -168,39 +185,37 @@ namespace SteamAppDetailsToSQL
         }
     }
 
+    #region Review Classes
+    // Classes for deserializing results from the 
+    public class ReviewRoot
+    {
+        [JsonProperty("success")]
+        public int Success { get; set; }
 
-    // Review Classes
-        public class ReviewRoot
-        {
-            [JsonProperty("success")]
-            public int Success { get; set; }
+        [JsonProperty("query_summary")]
+        public QuerySummary QuerySummary { get; set; }
+    }
+    public class QuerySummary
+    {
+        [JsonProperty("num_reviews")]
+        public int NumReviews { get; set; }
 
-            [JsonProperty("query_summary")]
-            public QuerySummary QuerySummary { get; set; }
-        }
-        public class QuerySummary
-        {
-            [JsonProperty("num_reviews")]
-            public int NumReviews { get; set; }
+        [JsonProperty("review_score")]
+        public int ReviewScore { get; set; }
 
-            [JsonProperty("review_score")]
-            public int ReviewScore { get; set; }
+        [JsonProperty("review_score_desc")]
+        public string ReviewScoreDesc { get; set; }
 
-            [JsonProperty("review_score_desc")]
-            public string ReviewScoreDesc { get; set; }
+        [JsonProperty("total_positive")]
+        public int TotalPositive { get; set; }
 
-            [JsonProperty("total_positive")]
-            public int TotalPositive { get; set; }
+        [JsonProperty("total_negative")]
+        public int TotalNegative { get; set; }
 
-            [JsonProperty("total_negative")]
-            public int TotalNegative { get; set; }
-
-            [JsonProperty("total_reviews")]
-            public int TotalReviews { get; set; }
-        }
-
-
-
+        [JsonProperty("total_reviews")]
+        public int TotalReviews { get; set; }
+    }
+    #endregion
     // Details Classes
     public class DetailsRoot
     {
@@ -210,7 +225,7 @@ namespace SteamAppDetailsToSQL
         [JsonProperty("data")]
         public Data Data { get; set; }
     }
-
+    #region
     public class Data
     {
         [JsonProperty("type")]
@@ -347,8 +362,6 @@ namespace SteamAppDetailsToSQL
         public string Max { get; set; }
     }
 
-
-
     public class PcRequirements
     {
         [JsonProperty("minimum")]
@@ -440,4 +453,4 @@ namespace SteamAppDetailsToSQL
 
 }
 
-    
+#endregion
