@@ -12,8 +12,7 @@ using System.Threading.Tasks;
 using System.Xml.Linq;
 using Newtonsoft.Json.Converters;
 using System.Text.Json.Serialization;
-using System.Data.SqlClient;
-
+using Microsoft.EntityFrameworkCore;
 
 
 /* 
@@ -45,9 +44,9 @@ namespace SteamAppDetailsToSQL
             int appId = 294100; // Replace with the desired app ID
             var details = await FetchAppDetailsAsync(appId);
             var reviews = await FetchAppReviewsAsync(appId);
-            MergedData
+            MergedData md = new MergedData(details, reviews);
+            CreateDbContext(md);
             Console.ReadLine();
-
         }
         #region App List Methods
         // Returns the App List from the Steam API endpoint.
@@ -98,7 +97,7 @@ namespace SteamAppDetailsToSQL
             return steamApps;
         }
         #endregion
-
+        #region API Retrieval Methods
         // Returns a deserialized response from the Steam app details API
         public static async Task <DetailsRoot> FetchAppDetailsAsync(int appId)
         {
@@ -148,8 +147,31 @@ namespace SteamAppDetailsToSQL
             return innerObject.ToString();
 
         }
-
+        #endregion
+        public static void CreateDbContext(MergedData md)
+        {
+            // Create a new instance of your DbContext class
+            using (var db = new SteamDbContext())
+            {
+                // Add a new product to the database
+                db.MergedDataObject.Add(md);
+                db.SaveChanges();
+            }
+        }
     }
+
+    // Create a DbContext class that represents your database
+    public class SteamDbContext : DbContext
+    {
+        public DbSet<MergedData> MergedDataObject { get; set; }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            // Set the connection string for your database
+            optionsBuilder.UseSqlServer("Server=KYLES-LAPTOP;Database=SteamAppDatabase;Trusted_Connection=True;");
+        }
+    }
+
     #region GetSteamApps Class
     // SteamApps Class which stores app ID and name from the GetSteamApps Steam endpoint
     public class SteamApp
@@ -168,15 +190,16 @@ namespace SteamAppDetailsToSQL
         }
     }
     #endregion
-
+    #region MergedData Class
     // Merge Class - combines both deserialized API endpoints into a single object to allow a single return
-
     public class MergedData
     {
 
         public DetailsRoot DetailsObject { get; set; }
 
         public ReviewRoot ReviewObject { get; set; }
+
+        public MergedData() { }
         public MergedData(DetailsRoot dR, ReviewRoot rR)
         {
 
@@ -184,7 +207,7 @@ namespace SteamAppDetailsToSQL
             ReviewObject = rR;
         }
     }
-
+    #endregion
     #region Review Classes
     // Classes for deserializing results from the 
     public class ReviewRoot
@@ -216,6 +239,7 @@ namespace SteamAppDetailsToSQL
         public int TotalReviews { get; set; }
     }
     #endregion
+    #region Details Classes
     // Details Classes
     public class DetailsRoot
     {
@@ -225,7 +249,7 @@ namespace SteamAppDetailsToSQL
         [JsonProperty("data")]
         public Data Data { get; set; }
     }
-    #region
+
     public class Data
     {
         [JsonProperty("type")]
@@ -242,7 +266,6 @@ namespace SteamAppDetailsToSQL
 
         [JsonProperty("is_free")]
         public bool IsFree { get; set; }
-
 
         [JsonProperty("detailed_description")]
         public string DetailedDescription { get; set; }
@@ -280,7 +303,6 @@ namespace SteamAppDetailsToSQL
         [JsonProperty("price_overview")]
         public PriceOverview PriceOverview { get; set; }
 
-
         [JsonProperty("platforms")]
         public Platforms Platforms { get; set; }
 
@@ -307,9 +329,7 @@ namespace SteamAppDetailsToSQL
 
         [JsonProperty("background_raw")]
         public string BackgroundRaw { get; set; }
-
     }
-
 
     public class LinuxRequirements
     {
@@ -416,7 +436,6 @@ namespace SteamAppDetailsToSQL
         public string Date { get; set; }
     }
 
-
     public class Screenshot
     {
         [JsonProperty("id")]
@@ -428,8 +447,6 @@ namespace SteamAppDetailsToSQL
         [JsonProperty("path_full")]
         public string PathFull { get; set; }
     }
-
-
 
     public class SupportInfo
     {
@@ -448,9 +465,6 @@ namespace SteamAppDetailsToSQL
         [JsonProperty("max")]
         public string Max { get; set; }
     }
-
-
-
+    #endregion
 }
 
-#endregion
