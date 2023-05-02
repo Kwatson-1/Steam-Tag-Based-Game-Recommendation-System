@@ -13,6 +13,10 @@ using System.Xml.Linq;
 using Newtonsoft.Json.Converters;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
+using System.Formats.Asn1;
+using System.Net.Http.Json;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 
 /* 
@@ -44,7 +48,7 @@ namespace SteamAppDetailsToSQL
             int appId = 294100; // Replace with the desired app ID
             var details = await FetchAppDetailsAsync(appId);
             var reviews = await FetchAppReviewsAsync(appId);
-            MergedData md = new MergedData(details, reviews);
+            MergedData md = new(details, reviews);
             CreateDbContext(md);
             Console.ReadLine();
         }
@@ -73,8 +77,8 @@ namespace SteamAppDetailsToSQL
         // CSV file may require manual removal of records that are not in the correct format due to testing by the Steam development team.
         public static List<SteamApp> GetSteamAppsFromCsv()
         {
-            List<SteamApp> steamApps = new List<SteamApp>();
-            using (StreamReader sr = new StreamReader("steam_games.csv"))
+            List<SteamApp> steamApps = new();
+            using (StreamReader sr = new ("steam_games.csv"))
             {
                 string line;
                 while ((line = sr.ReadLine()) != null)
@@ -89,7 +93,7 @@ namespace SteamAppDetailsToSQL
                     if (int.TryParse(values[0], out int appId) && !string.IsNullOrEmpty(values[1]))
                     {
                         string name = values[1].Trim(); // Trim any whitespace around the name.
-                        SteamApp app = new SteamApp(appId, name);
+                        SteamApp app = new(appId, name);
                         steamApps.Add(app);
                     }
                 }
@@ -99,12 +103,12 @@ namespace SteamAppDetailsToSQL
         #endregion
         #region API Retrieval Methods
         // Returns a deserialized response from the Steam app details API
-        public static async Task <DetailsRoot> FetchAppDetailsAsync(int appId)
+        public static async Task<DetailsRoot> FetchAppDetailsAsync(int appId)
         {
             string steamAppDetailsUrl = $"https://store.steampowered.com/api/appdetails?appids={appId}";
 
 
-            using HttpClient httpClient = new HttpClient();
+            using HttpClient httpClient = new();
 
             HttpResponseMessage detailsResponse = await httpClient.GetAsync(steamAppDetailsUrl);
             string jsonDetailsResponse = await detailsResponse.Content.ReadAsStringAsync();
@@ -117,12 +121,12 @@ namespace SteamAppDetailsToSQL
             return myDeserializedDetailsClass;
         }
         // Returns a deserialized response from the Steam app reviews API
-        public static async Task <ReviewRoot> FetchAppReviewsAsync(int appId)
+        public static async Task<ReviewRoot> FetchAppReviewsAsync(int appId)
         {
             string steamAppReviewUrl = $"https://store.steampowered.com/appreviews/{appId}?json=1";
 
 
-            using HttpClient httpClient = new HttpClient();
+            using HttpClient httpClient = new();
 
             HttpResponseMessage reviewResponse = await httpClient.GetAsync(steamAppReviewUrl);
             string jsonReviewResponse = await reviewResponse.Content.ReadAsStringAsync();
@@ -151,12 +155,10 @@ namespace SteamAppDetailsToSQL
         public static void CreateDbContext(MergedData md)
         {
             // New instance of the DbContext class
-            using (var db = new SteamDbContext())
-            {
-                // Add a new product to the database
-                db.MergedDataObject.Add(md);
-                db.SaveChanges();
-            }
+            using var db = new SteamDbContext();
+            // Add a new product to the database
+            db.MergedDataObject.AddRange(md);
+            db.SaveChanges();
         }
     }
 
@@ -169,6 +171,10 @@ namespace SteamAppDetailsToSQL
         {
             // Set the connection string for your database
             optionsBuilder.UseSqlServer("Server=KYLES-LAPTOP;Database=SteamAppDatabase;Trusted_Connection=True;");
+        }
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<MergedData>().HasNoKey();
         }
     }
 
@@ -192,9 +198,9 @@ namespace SteamAppDetailsToSQL
     #endregion
     #region MergedData Class
     // Merge Class - combines both deserialized API endpoints into a single object to allow a single return
+    [NotMapped]
     public class MergedData
     {
-
         public DetailsRoot DetailsObject { get; set; }
 
         public ReviewRoot ReviewObject { get; set; }
@@ -210,6 +216,7 @@ namespace SteamAppDetailsToSQL
     #endregion
     #region Review Classes
     // Classes for deserializing results from the 
+    [NotMapped]
     public class ReviewRoot
     {
         [JsonProperty("success")]
@@ -241,6 +248,7 @@ namespace SteamAppDetailsToSQL
     #endregion
     #region Details Classes
     // Details Classes
+    [NotMapped]
     public class DetailsRoot
     {
         [JsonProperty("success")]
@@ -252,12 +260,13 @@ namespace SteamAppDetailsToSQL
 
     public class Data
     {
+        [Key]
+        public int Id { get; set; }
         [JsonProperty("type")]
         public string Type { get; set; }
 
         [JsonProperty("name")]
         public string Name { get; set; }
-
         [JsonProperty("steam_appid")]
         public int SteamAppid { get; set; }
 
