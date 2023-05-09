@@ -1,15 +1,16 @@
 {
   "version": 2,
-  "dgSpecHash": "AqFF0RQMoUAqPaiclTc8s712cMHmll/yOcZpB9tFOZsAfwv81YEBdPVC9zzwk4Fme4M2370GUAozuFQ3tuG4Ew==",
+  "dgSpecHash": "esbYSHBveAkHie6/WhJ1eGg65PGHTcYa7m6zRWeMuOhqFHRuJ0sPWr+VivMvNNQsu3XPkW0vCTJqos1YsxEtbQ==",
   "success": true,
   "projectFilePath": "C:\\Users\\61424\\Documents\\GitHub\\Steam-Tag-Based-Game-Recommendation-System\\SteamAppToSQL\\SteamAppToSQL.csproj",
   "expectedPackageFiles": [
+    "C:\\Users\\61424\\.nuget\\packages\\automapper\\12.0.1\\automapper.12.0.1.nupkg.sha512",
     "C:\\Users\\61424\\.nuget\\packages\\azure.core\\1.24.0\\azure.core.1.24.0.nupkg.sha512",
     "C:\\Users\\61424\\.nuget\\packages\\azure.identity\\1.6.0\\azure.identity.1.6.0.nupkg.sha512",
     "C:\\Users\\61424\\.nuget\\packages\\csvhelper\\30.0.1\\csvhelper.30.0.1.nupkg.sha512",
     "C:\\Users\\61424\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\61424\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\1.1.1\\microsoft.bcl.asyncinterfaces.1.1.1.nupkg.sha512",
-    "C:\\Users\\61424\\.nuget\\packages\\microsoft.csharp\\4.5.0\\microsoft.csharp.4.5.0.nupkg.sha512",
+    "C:\\Users\\61424\\.nuget\\packages\\microsoft.csharp\\4.7.0\\microsoft.csharp.4.7.0.nupkg.sha512",
     "C:\\Users\\61424\\.nuget\\packages\\microsoft.data.sqlclient\\5.0.1\\microsoft.data.sqlclient.5.0.1.nupkg.sha512",
     "C:\\Users\\61424\\.nuget\\packages\\microsoft.data.sqlclient.sni.runtime\\5.0.1\\microsoft.data.sqlclient.sni.runtime.5.0.1.nupkg.sha512",
     "C:\\Users\\61424\\.nuget\\packages\\microsoft.entityframeworkcore\\7.0.5\\microsoft.entityframeworkcore.7.0.5.nupkg.sha512",

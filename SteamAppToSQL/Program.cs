@@ -1,9 +1,4 @@
 ﻿using CsvHelper;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using System;
-using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -13,11 +8,18 @@ using System.Xml.Linq;
 using Newtonsoft.Json.Converters;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System.ComponentModel.DataAnnotations;
 using System.Formats.Asn1;
 using System.Net.Http.Json;
-using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.Extensions.Configuration;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+//using SteamAppDatabase.Entities;
+//using SteamAppDatabase.Models;
 using System.IO;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -53,8 +55,6 @@ namespace SteamAppDetailsToSQL
             var reviews = await FetchAppReviewsAsync(appId);
             MergedData md = new(details, reviews);
             Console.ReadLine();
-
-
         }
         #region App List Methods
         // Returns the App List from the Steam API endpoint.
@@ -171,6 +171,21 @@ namespace SteamAppDetailsToSQL
     // Creates a DbContext class that represents the database
     public class SteamDbContext : DbContext
     {
+        public DbSet<OrmGame> Game { get; set; }
+        public DbSet<OrmDeveloper> Developers { get; set; }
+        public DbSet<OrmPublisher> Publishers { get; set; }
+        public DbSet<OrmGameDeveloper> GameDevelopers { get; set; }
+        public DbSet<OrmGamePublisher> GamePublishers { get; set; }
+        public DbSet<OrmRequirements> Requirements { get; set; }
+        public DbSet<OrmPriceOverview> PriceOverview { get; set; }
+        public DbSet<OrmMetacritic> Metacritic { get; set; }
+        public DbSet<OrmScreenshot> Screenshots { get; set; }
+        public DbSet<OrmMovie> Movies { get; set; }
+        public DbSet<OrmRecommendations> Recommendations { get; set; }
+        public DbSet<OrmSupportInfo> SupportInfo { get; set; }
+        public DbSet<OrmBackground> Background { get; set; }
+        public DbSet<OrmLanguage> Language { get; set; }
+        public DbSet<OrmGameLanguage> GameLanguages { get; set; }
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             // Set the connection string for your database
@@ -179,8 +194,266 @@ namespace SteamAppDetailsToSQL
         }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-
+            modelBuilder.Entity<OrmGameDeveloper>()
+                .HasKey(gd => new { gd.GameAppId, gd.DeveloperId });
+            modelBuilder.Entity<OrmGamePublisher>()
+                .HasKey(gp => new { gp.GameAppId, gp.PublisherId });
+            modelBuilder.Entity<OrmGameLanguage>()
+                .HasKey(gl => new { gl.GameAppId, gl.LanguageId });
+            modelBuilder.Entity<OrmRequirements>()
+                .HasOne(r => r.OrmGame)
+                .WithOne(g => g.Requirements)
+                .HasForeignKey<OrmRequirements>(r => r.GameAppId);
+            modelBuilder.Entity<OrmPriceOverview>()
+                .HasOne(p => p.OrmGame)
+                .WithOne(g => g.PriceOverview)
+                .HasForeignKey<OrmPriceOverview>(p => p.GameAppId);
+            modelBuilder.Entity<OrmMetacritic>()
+                .HasOne(m => m.OrmGame)
+                .WithOne(g => g.Metacritic)
+                .HasForeignKey<OrmMetacritic>(m => m.GameAppId);
+            modelBuilder.Entity<OrmScreenshot>()
+                .HasOne(s => s.OrmGame)
+                .WithMany(g => g.Screenshots)
+                .HasForeignKey(s => s.GameAppId);
+            modelBuilder.Entity<OrmMovie>()
+                .HasOne(m => m.OrmGame)
+                .WithMany(g => g.Movies)
+                .HasForeignKey(m => m.GameAppId);
+            modelBuilder.Entity<OrmRecommendations>()
+                .HasOne(r => r.OrmGame)
+                .WithOne(g => g.Recommendations)
+                .HasForeignKey<OrmRecommendations>(r => r.GameAppId);
+            modelBuilder.Entity<OrmSupportInfo>()
+                .HasOne(s => s.OrmGame)
+                .WithOne(g => g.SupportInfo)
+                .HasForeignKey<OrmSupportInfo>(s => s.GameAppId);
+            modelBuilder.Entity<OrmBackground>()
+                .HasOne(b => b.OrmGame)
+                .WithOne(g => g.Background)
+                .HasForeignKey<OrmBackground>(b => b.GameAppId);
+            modelBuilder.Entity<OrmGame>()
+                .HasMany(g => g.GameDevelopers)
+                .WithOne(gd => gd.OrmGame)
+                .HasForeignKey(gd => gd.GameAppId);
+            modelBuilder.Entity<OrmGame>()
+                .HasMany(g => g.GamePublishers)
+                .WithOne(gp => gp.OrmGame)
+                .HasForeignKey(gp => gp.GameAppId);
+            modelBuilder.Entity<OrmDeveloper>()
+                .HasMany(d => d.GameDevelopers)
+                .WithOne(gd => gd.OrmDeveloper)
+                .HasForeignKey(gd => gd.DeveloperId);
+            modelBuilder.Entity<OrmPublisher>()
+                .HasMany(p => p.GamePublishers)
+                .WithOne(gp => gp.OrmPublisher)
+                .HasForeignKey(gp => gp.PublisherId);
+            modelBuilder.Entity<OrmLanguage>()
+                .HasMany(l => l.GameLanguages)
+                .WithOne(g => g.OrmLanguage)
+                .HasForeignKey(l => l.LanguageId);
+            //.UsingEntity<OrmGameLanguage>(gl => gl.GameLanguages);
+            //    gl => gl.HasOne(lg => lg.OrmLanguage)
+            //        .WithMany()
+            //        .HasForeignKey(lg => lg.LanguageId),
+            //    gl => gl.HasOne(lg => lg.OrmGame)
+            //        .WithMany()
+            //        .HasForeignKey(lg => lg.GameAppId),
+            //    gl => gl.HasKey(lg => new { lg.GameAppId, lg.LanguageId })
+            //);
         }
+    }
+    [Table("Game")]
+    public class OrmGame
+    {
+        [Key]
+        public int SteamAppId { get; set; }
+        public string Type { get; set; }
+        public string Name { get; set; }
+        public int RequiredAge { get; set; }
+        public bool IsFree { get; set; }
+        public string DetailedDescription { get; set; }
+        public string AboutTheGame { get; set; }
+        public string ShortDescription { get; set; }
+        public string HeaderImage { get; set; }
+        public string ReleaseDate { get; set; }
+        public bool Windows { get; set; }
+        public bool Mac { get; set; }
+        public bool Linux { get; set; }
+        public virtual OrmRecommendations Recommendations { get; set; }
+        public virtual OrmRequirements Requirements { get; set; }
+        public virtual OrmPriceOverview PriceOverview { get; set; }
+        public virtual OrmMetacritic Metacritic { get; set; }
+        public virtual OrmSupportInfo SupportInfo { get; set; }
+        public virtual OrmBackground Background { get; set; }
+        public virtual ICollection<OrmGameDeveloper> GameDevelopers { get; set; }
+        public virtual ICollection<OrmGamePublisher> GamePublishers { get; set; }
+        public virtual ICollection<OrmScreenshot> Screenshots { get; set; }
+        public virtual ICollection<OrmMovie> Movies { get; set; }
+        public virtual ICollection<OrmGameLanguage> GameLanguages { get; set; }
+    }
+    // One developer has multiple games - same dev different game
+    public class OrmDeveloper
+    {
+        [Key]
+        public int Id { get; set; }
+        public string Name { get; set; }
+
+        public virtual ICollection<OrmGameDeveloper> GameDevelopers { get; set; }
+    }
+    // One publisher has multiple games - same publisher different games
+    public class OrmPublisher
+    {
+        [Key]
+        public int Id { get; set; }
+        public string Name { get; set; }
+
+        public virtual ICollection<OrmGamePublisher> GamePublishers { get; set; }
+    }
+    // One GameDeveloper has one game and one developer
+    public class OrmGameDeveloper
+    {
+        [Key, Column(Order = 0)]
+        public int GameAppId { get; set; }
+
+        [Key, Column(Order = 1)]
+        public int DeveloperId { get; set; }
+
+        public virtual OrmGame OrmGame { get; set; }
+        public virtual OrmDeveloper OrmDeveloper { get; set; }
+    }
+    // One GamePublisher has one game and one publisher
+    public class OrmGamePublisher
+    {
+        [Key, Column(Order = 0)]
+        public int GameAppId { get; set; }
+
+        [Key, Column(Order = 1)]
+        public int PublisherId { get; set; }
+
+        public virtual OrmGame OrmGame { get; set; }
+        public virtual OrmPublisher OrmPublisher { get; set; }
+    }
+    // Requirement has one Game and Game has one Requirement
+    public class OrmRequirements
+    {
+        [Key]
+        public int Id { get; set; }
+        public int GameAppId { get; set; }
+        public string Platform { get; set; }
+        public string Minimum { get; set; }
+
+        public virtual OrmGame OrmGame { get; set; }
+    }
+    // PriceOverview has one Game and Game has one PriceOverview
+    public class OrmPriceOverview
+    {
+        [Key]
+        public int Id { get; set; }
+        public int GameAppId { get; set; }
+        public string Currency { get; set; }
+        public int? DiscountPercent { get; set; }
+        public string FinalFormatted { get; set; }
+
+        public virtual OrmGame OrmGame { get; set; }
+    }
+    // Metacritic has one Game and Game has one Metacritic
+    public class OrmMetacritic
+    {
+        [Key]
+        public int Id { get; set; }
+        public int GameAppId { get; set; }
+        public int? Score { get; set; }
+        public string Url { get; set; }
+
+        public virtual OrmGame OrmGame { get; set; }
+    }
+    // Screenshot has one game - game has multiple screenshots
+    [Table("Screenshot")]
+    public class OrmScreenshot
+    {
+        public int Id { get; set; }
+        public int GameAppId { get; set; }
+        public string PathThumbnail { get; set; }
+        public string PathFull { get; set; }
+        [ForeignKey("GameAppId")]
+        public OrmGame OrmGame { get; set; }
+    }
+    // Movie has one game - game has multiple movies
+    [Table("Movie")]
+    public class OrmMovie
+    {
+        public int Id { get; set; }
+        public int GameAppId { get; set; }
+        public int MovieId { get; set; }
+        public string Name { get; set; }
+        public string Thumbnail { get; set; }
+        public string Webm480 { get; set; }
+        public string WebmMax { get; set; }
+        public string Mp4480 { get; set; }
+        public string Mp4Max { get; set; }
+        public bool Highlight { get; set; }
+        [ForeignKey("GameAppId")]
+        public OrmGame OrmGame { get; set; }
+    }
+    //  Language has many game languages (same language different game) - game has many game languages (same game different languages)
+    public class OrmLanguage
+    {
+        public int Id { get; set; }
+        public string Language { get; set; }
+        public virtual ICollection<OrmGameLanguage> GameLanguages { get; set; }
+    }
+    // Each game languages has one game and one language
+    public class OrmGameLanguage
+    {
+        [Key]
+        [Column(Order = 0)]
+        public int GameAppId { get; set; }
+
+        [Key]
+        [Column(Order = 1)]
+        public int LanguageId { get; set; }
+
+        [ForeignKey(nameof(GameAppId))]
+        public OrmGame OrmGame { get; set; }
+
+        [ForeignKey(nameof(LanguageId))]
+        public OrmLanguage OrmLanguage { get; set; }
+    }
+    // Each recommendations has one game - game has one recommendations
+    public class OrmRecommendations
+    {
+        public int Id { get; set; }
+        public int GameAppId { get; set; }
+        public string ReviewScoreDesc { get; set; }
+        public int TotalReviews { get; set; }
+        public int TotalPositive { get; set; }
+        public int TotalNegative { get; set; }
+
+        [ForeignKey(nameof(GameAppId))]
+        public OrmGame OrmGame { get; set; }
+    }
+    // Each support info has one game and each game has one support info
+    public class OrmSupportInfo
+    {
+        public int Id { get; set; }
+        public int GameAppId { get; set; }
+        public string Url { get; set; }
+        public string Email { get; set; }
+
+        [ForeignKey(nameof(GameAppId))]
+        public OrmGame OrmGame { get; set; }
+    }
+    // Background has one game and game has one background
+    public class OrmBackground
+    {
+        public int Id { get; set; }
+        public int GameAppId { get; set; }
+        public string Background { get; set; }
+        public string BackgroundRaw { get; set; }
+
+        [ForeignKey(nameof(GameAppId))]
+        public OrmGame OrmGame { get; set; }
     }
 
     #region GetSteamApps Class
@@ -344,14 +617,7 @@ namespace SteamAppDetailsToSQL
         [JsonProperty("minimum")]
         public string? Minimum { get; set; }
     }
-    //public class Developer
-    //{
-    //    public string? name { get; set;}
-    //}
-    //public class Publisher
-    //{
-    //    public string? name { get; set; }
-    //}
+
     public class MacRequirements
     {
         [JsonProperty("minimum")]
