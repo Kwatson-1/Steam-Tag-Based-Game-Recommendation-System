@@ -22,6 +22,10 @@ using System.Globalization;
 //using SteamAppDatabase.Models;
 using System.IO;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration.Json;
+using Microsoft.Extensions.Configuration.UserSecrets;
+using Microsoft.Extensions.Options;
+
 
 /* 
 Developer: Kyle Watson
@@ -36,25 +40,34 @@ Project Tasks/Goals
     6. Call back the data fro the JSON file and parse the JSON response for each app and extract the necessary data.
     7. Use a library to connect the SQL Server dataase and insert the extracted data.
 */
+
 namespace SteamAppDetailsToSQL
 {
     internal class Program
     {
-        public static string steamWebApiKey = "81410A991EDD3F3DDDF9177C3DB453C9";
+        //public static string steamWebApiKey = "81410A991EDD3F3DDDF9177C3DB453C9";
         public static async Task Main(string[] args)
         {
-            //List<SteamApps> games = await GetSteamAppsAsync();
-            //string outputPath = "steam_games.csv";
-            //SaveSteamAppsToCsv(games, outputPath);
-            //Console.WriteLine($"Saved {games.Count} games to {outputPath}");
+            UpdatedGetAppList();
+            
 
-            //List<SteamApp> appList = GetSteamAppsFromCsv();
-
+                
             int appId = 294100; // Replace with the desired app ID
             var details = await FetchAppDetailsAsync(appId);
             var reviews = await FetchAppReviewsAsync(appId);
             MergedData md = new(details, reviews);
             Console.ReadLine();
+    }
+        // Gets the steam app list, updates the output file and returns the new List<SteamApp> object
+        // Get/Update/Return
+        public static async Task<List<SteamApp>> UpdatedGetAppList()
+        {
+            List<SteamApp> games = await GetSteamAppsAsync();
+            string outputPath = "steam_games.csv";
+            SaveSteamAppsToCsv(games, outputPath);
+            Console.WriteLine($"Saved {games.Count} games to {outputPath}");
+            List<SteamApp> appList = GetSteamAppsFromCsv();
+            return appList;
         }
         #region App List Methods
         // Returns the App List from the Steam API endpoint.
@@ -70,7 +83,7 @@ namespace SteamAppDetailsToSQL
             List<SteamApp> appList = appsArray.ToObject<List<SteamApp>>() ?? throw new Exception("There was no object to store within the List.");
             return appList;
         }
-        // Writes the Steam apps list to a CSV file.
+        // Writes Steam apps list to a CSV file.
         public static void SaveSteamAppsToCsv(List<SteamApp> apps, string filePath)
         {
             using var writer = new StreamWriter(filePath);
@@ -78,7 +91,7 @@ namespace SteamAppDetailsToSQL
             csv.WriteRecords(apps);
         }
         // Reads the Steam apps from the CSV file into a List of Class 'SteamApps'.
-        // CSV file may require manual removal of records that are not in the correct format due to testing by the Steam development team.
+        // CSV file may require manual removal of records that are not in the correct format due to specific test cases used by the Steam development team or delete/removed apps.
         public static List<SteamApp> GetSteamAppsFromCsv()
         {
             List<SteamApp> steamApps = new();
@@ -156,21 +169,64 @@ namespace SteamAppDetailsToSQL
 
         }
         #endregion
+        //public static string GetConnectionString(string connectionName)
+        //{
+        //    var configuration = new ConfigurationBuilder()
+        //        .SetBasePath(Directory.GetCurrentDirectory())
+        //        .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+        //        .Build();
 
-        public static string GetConnectionString(string connectionName)
+        //    return configuration.GetConnectionString(connectionName) ?? throw new Exception("Unable to resolve connection string");
+        //}
+    }
+    #region App settings and startup classes
+    public class AppSettings
+    {
+        public string SteamAppDatabase { get; set; }
+        public string SteamWebApi { get; set; }
+        // Overloaded constructor
+        public AppSettings(string steamAppDatabase, string steamWebApi)
         {
-            var configuration = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                .Build();
-
-            return configuration.GetConnectionString(connectionName) ?? throw new Exception("Unable to resolve connection string");
+            SteamAppDatabase = steamAppDatabase;
+            SteamWebApi = steamWebApi;
         }
     }
+    public class Startup
+    {
+        public IConfiguration Configuration { get; }
+        public Startup()
+        {
+            var builder = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json")
+                .AddUserSecrets<Startup>(); // Add secrets from the Secret Manager
 
+            Configuration = builder.Build();
+        }
+        public void ConfigureServices(IServiceCollection services)
+        {
+            // Registering of AppSettings in the dependency injection container
+            string steamAppDatabase = Configuration.GetValue<string>("SteamAppDatabase");
+            string steamWebApi = Configuration.GetValue<string>("SteamWebApi");
+
+            AppSettings appSettings = new (steamAppDatabase, steamWebApi);
+
+            services.AddSingleton(appSettings);
+            services.AddDbContext<SteamDbContext>(options => options.UseSqlServer(appSettings.SteamAppDatabase));
+        }
+
+    }
+    #endregion
+    #region SteamDbContext
     // Creates a DbContext class that represents the database
     public class SteamDbContext : DbContext
     {
+        private readonly AppSettings _appSettings;
+
+        public SteamDbContext(AppSettings appSettings)
+        {
+            _appSettings = appSettings;
+        }
         public DbSet<OrmGame> Game { get; set; }
         public DbSet<OrmDeveloper> Developers { get; set; }
         public DbSet<OrmPublisher> Publishers { get; set; }
@@ -186,10 +242,12 @@ namespace SteamAppDetailsToSQL
         public DbSet<OrmBackground> Background { get; set; }
         public DbSet<OrmLanguage> Language { get; set; }
         public DbSet<OrmGameLanguage> GameLanguages { get; set; }
+
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             // Set the connection string for your database
-            string connectionString = Program.GetConnectionString("SteamAppDatabase");
+            //string connectionString = Program.GetConnectionString("SteamAppDatabase");
+            string connectionString = _appSettings.SteamAppDatabase;
             optionsBuilder.UseSqlServer(connectionString);
         }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -263,6 +321,8 @@ namespace SteamAppDetailsToSQL
             //);
         }
     }
+    #endregion
+    #region ORM classes
     [Table("Game")]
     public class OrmGame
     {
@@ -455,7 +515,7 @@ namespace SteamAppDetailsToSQL
         [ForeignKey(nameof(GameAppId))]
         public OrmGame OrmGame { get; set; }
     }
-
+    #endregion
     #region GetSteamApps Class
     // SteamApps Class which stores app ID and name from the GetSteamApps Steam endpoint
     public class SteamApp
@@ -740,6 +800,8 @@ namespace SteamAppDetailsToSQL
         [JsonProperty("max")]
         public string? Max { get; set; }
     }
+
     #endregion
 }
+
 

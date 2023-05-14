@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "esbYSHBveAkHie6/WhJ1eGg65PGHTcYa7m6zRWeMuOhqFHRuJ0sPWr+VivMvNNQsu3XPkW0vCTJqos1YsxEtbQ==",
+  "dgSpecHash": "poOpka6N1rPcGHPC1ItuUkIhlgjk3DJMw4vLHc7hEIaLuDYiMHd3OgQi7gOKtMJzr+ilg17OUnFJRqu4PiNx2w==",
   "success": true,
   "projectFilePath": "C:\\Users\\61424\\Documents\\GitHub\\Steam-Tag-Based-Game-Recommendation-System\\SteamAppToSQL\\SteamAppToSQL.csproj",
   "expectedPackageFiles": [
@@ -24,8 +24,10 @@
     "C:\\Users\\61424\\.nuget\\packages\\microsoft.extensions.caching.memory\\7.0.0\\microsoft.extensions.caching.memory.7.0.0.nupkg.sha512",
     "C:\\Users\\61424\\.nuget\\packages\\microsoft.extensions.configuration\\7.0.0\\microsoft.extensions.configuration.7.0.0.nupkg.sha512",
     "C:\\Users\\61424\\.nuget\\packages\\microsoft.extensions.configuration.abstractions\\7.0.0\\microsoft.extensions.configuration.abstractions.7.0.0.nupkg.sha512",
+    "C:\\Users\\61424\\.nuget\\packages\\microsoft.extensions.configuration.binder\\7.0.4\\microsoft.extensions.configuration.binder.7.0.4.nupkg.sha512",
     "C:\\Users\\61424\\.nuget\\packages\\microsoft.extensions.configuration.fileextensions\\7.0.0\\microsoft.extensions.configuration.fileextensions.7.0.0.nupkg.sha512",
     "C:\\Users\\61424\\.nuget\\packages\\microsoft.extensions.configuration.json\\7.0.0\\microsoft.extensions.configuration.json.7.0.0.nupkg.sha512",
+    "C:\\Users\\61424\\.nuget\\packages\\microsoft.extensions.configuration.usersecrets\\6.0.1\\microsoft.extensions.configuration.usersecrets.6.0.1.nupkg.sha512",
     "C:\\Users\\61424\\.nuget\\packages\\microsoft.extensions.dependencyinjection\\7.0.0\\microsoft.extensions.dependencyinjection.7.0.0.nupkg.sha512",
     "C:\\Users\\61424\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\7.0.0\\microsoft.extensions.dependencyinjection.abstractions.7.0.0.nupkg.sha512",
     "C:\\Users\\61424\\.nuget\\packages\\microsoft.extensions.dependencymodel\\7.0.0\\microsoft.extensions.dependencymodel.7.0.0.nupkg.sha512",
