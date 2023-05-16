@@ -25,6 +25,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration.Json;
 using Microsoft.Extensions.Configuration.UserSecrets;
 using Microsoft.Extensions.Options;
+using AutoMapper;
+using System.Collections;
 
 
 /* 
@@ -48,19 +50,18 @@ namespace SteamAppDetailsToSQL
         //public static string steamWebApiKey = "81410A991EDD3F3DDDF9177C3DB453C9";
         public static async Task Main(string[] args)
         {
-            UpdatedGetAppList();
-            
+            var appList = UpdateGetAppList();
+            var appDataList = GetAllAppData(await appList);
 
-                
-            int appId = 294100; // Replace with the desired app ID
-            var details = await FetchAppDetailsAsync(appId);
-            var reviews = await FetchAppReviewsAsync(appId);
-            MergedData md = new(details, reviews);
-            Console.ReadLine();
-    }
+            // Testing for individual app
+            //int appId = 294100; // Replace with the desired app ID
+            //var details = await FetchAppDetailsAsync(appId);
+            //var reviews = await FetchAppReviewsAsync(appId);
+            //MergedData md = new(details, reviews);
+        }
+        #region App List Methods
         // Gets the steam app list, updates the output file and returns the new List<SteamApp> object
-        // Get/Update/Return
-        public static async Task<List<SteamApp>> UpdatedGetAppList()
+        public static async Task<List<SteamApp>> UpdateGetAppList()
         {
             List<SteamApp> games = await GetSteamAppsAsync();
             string outputPath = "steam_games.csv";
@@ -69,7 +70,7 @@ namespace SteamAppDetailsToSQL
             List<SteamApp> appList = GetSteamAppsFromCsv();
             return appList;
         }
-        #region App List Methods
+
         // Returns the App List from the Steam API endpoint.
         public static async Task<List<SteamApp>> GetSteamAppsAsync()
         {
@@ -178,6 +179,63 @@ namespace SteamAppDetailsToSQL
 
         //    return configuration.GetConnectionString(connectionName) ?? throw new Exception("Unable to resolve connection string");
         //}
+                public static async Task<List<MergedData>> GetAllAppData(List<SteamApp> appList)
+        {
+            List<MergedData> appDataList = new();
+            foreach (var app in appList)
+            {
+                var details = await FetchAppDetailsAsync(app.AppId);
+                var reviews = await FetchAppReviewsAsync(app.AppId);
+                MergedData md = new(details, reviews);
+                appDataList.Add(md);
+            }
+            return appDataList;
+
+        }
+        public static void MapObjects(List<MergedData> md)
+        {
+            var config = new MapperConfiguration(cfg =>
+            {
+                cfg.AddProfile<AutoMapperProfile>(); // Add your profile here
+                cfg.CreateMap<MergedData, OrmGame>();
+            });
+
+            var mapper = config.CreateMapper();
+
+            // Using the mapper to convert the object
+            foreach (var myObject in md)
+            {
+                OrmGame myOrmClass = mapper.Map<OrmGame>(myObject);
+
+                // Save object to the database here
+                // Use EF core
+            }
+        }
+
+    }
+    public class AutoMapperProfile : Profile
+    {
+        public AutoMapperProfile()
+        {
+            CreateMap<MergedData, OrmGame>()
+                .ForMember(dest => dest.SteamAppId, opt => opt.MapFrom(src => src.DetailsObject.Data.SteamAppid))
+                .ForMember(dest => dest.Type, opt => opt.MapFrom(src => src.DetailsObject.Data.Type))
+                .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.DetailsObject.Data.Name))
+                .ForMember(dest => dest.RequiredAge, opt => opt.MapFrom(src => src.DetailsObject.Data.RequiredAge))
+                .ForMember(dest => dest.IsFree, opt => opt.MapFrom(src => src.DetailsObject.Data.IsFree))
+                .ForMember(dest => dest.DetailedDescription, opt => opt.MapFrom(src => src.DetailsObject.Data.DetailedDescription))
+                .ForMember(dest => dest.AboutTheGame, opt => opt.MapFrom(src => src.DetailsObject.Data.AboutTheGame))
+                .ForMember(dest => dest.ShortDescription, opt => opt.MapFrom(src => src.DetailsObject.Data.ShortDescription))
+                .ForMember(dest => dest.HeaderImage, opt => opt.MapFrom(src => src.DetailsObject.Data.HeaderImage))
+                .ForMember(dest => dest.ReleaseDate, opt => opt.MapFrom(src => src.DetailsObject.Data.ReleaseDate.Date))
+                .ForMember(dest => dest.Windows, opt => opt.MapFrom(src => src.DetailsObject.Data.Platforms.Windows))
+                .ForMember(dest => dest.Mac, opt => opt.MapFrom(src => src.DetailsObject.Data.Platforms.Mac))
+                .ForMember(dest => dest.Linux, opt => opt.MapFrom(src => src.DetailsObject.Data.Platforms.Linux));
+
+            // Add other CreateMap for other classes like OrmRequirements, OrmPriceOverview, etc.
+
+            // For exampl
+        }
     }
     #region App settings and startup classes
     public class AppSettings
@@ -209,7 +267,7 @@ namespace SteamAppDetailsToSQL
             string steamAppDatabase = Configuration.GetValue<string>("SteamAppDatabase");
             string steamWebApi = Configuration.GetValue<string>("SteamWebApi");
 
-            AppSettings appSettings = new (steamAppDatabase, steamWebApi);
+            AppSettings appSettings = new(steamAppDatabase, steamWebApi);
 
             services.AddSingleton(appSettings);
             services.AddDbContext<SteamDbContext>(options => options.UseSqlServer(appSettings.SteamAppDatabase));
@@ -802,6 +860,7 @@ namespace SteamAppDetailsToSQL
     }
 
     #endregion
+
 }
 
 
