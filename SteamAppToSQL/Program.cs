@@ -23,11 +23,10 @@ using System.Globalization;
 using System.IO;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration.Json;
-using Microsoft.Extensions.Configuration.UserSecrets;
 using Microsoft.Extensions.Options;
 using AutoMapper;
 using System.Collections;
-
+using Microsoft.Extensions.Hosting;
 
 /* 
 Developer: Kyle Watson
@@ -50,8 +49,9 @@ namespace SteamAppDetailsToSQL
         //public static string steamWebApiKey = "81410A991EDD3F3DDDF9177C3DB453C9";
         public static async Task Main(string[] args)
         {
-            var appList = UpdateGetAppList();
-            var appDataList = GetAllAppData(await appList);
+            CreateHostBuilder(args).Build().Run();
+            //var appList = UpdateGetAppList();
+            //var appDataList = GetAllAppData(await appList);
 
             // Testing for individual app
             //int appId = 294100; // Replace with the desired app ID
@@ -59,6 +59,29 @@ namespace SteamAppDetailsToSQL
             //var reviews = await FetchAppReviewsAsync(appId);
             //MergedData md = new(details, reviews);
         }
+        public static IHostBuilder CreateHostBuilder(string[] args) =>
+            Host.CreateDefaultBuilder(args)
+                .ConfigureServices((hostContext, services) =>
+                {
+                    // Configure services
+                    var configuration = new ConfigurationBuilder()
+                        .SetBasePath(Directory.GetCurrentDirectory())
+                        .AddJsonFile("appsettings.json")
+                        //.AddUserSecrets<Program>() // Add secrets from the Secret Manager
+                        .Build();
+
+                    AppSettings appSettings = new AppSettings(
+                        configuration.GetValue<string>("SteamAppDatabase"),
+                        configuration.GetValue<string>("SteamWebApi")
+                    );
+
+                    services.AddSingleton(appSettings);
+                    services.AddDbContext<SteamDbContext>(options => options.UseSqlServer(appSettings.SteamAppDatabase));
+
+                    // Other service registrations here:
+
+                });
+
         #region App List Methods
         // Gets the steam app list, updates the output file and returns the new List<SteamApp> object
         public static async Task<List<SteamApp>> UpdateGetAppList()
@@ -170,16 +193,7 @@ namespace SteamAppDetailsToSQL
 
         }
         #endregion
-        //public static string GetConnectionString(string connectionName)
-        //{
-        //    var configuration = new ConfigurationBuilder()
-        //        .SetBasePath(Directory.GetCurrentDirectory())
-        //        .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-        //        .Build();
-
-        //    return configuration.GetConnectionString(connectionName) ?? throw new Exception("Unable to resolve connection string");
-        //}
-                public static async Task<List<MergedData>> GetAllAppData(List<SteamApp> appList)
+        public static async Task<List<MergedData>> GetAllAppData(List<SteamApp> appList)
         {
             List<MergedData> appDataList = new();
             foreach (var app in appList)
@@ -190,54 +204,118 @@ namespace SteamAppDetailsToSQL
                 appDataList.Add(md);
             }
             return appDataList;
-
         }
-        public static void MapObjects(List<MergedData> md)
+        public OrmGame MapMergedDataToOrmGame(MergedData mergedData)
         {
-            var config = new MapperConfiguration(cfg =>
+            OrmGame ormGame = new();
+            var detailsData = mergedData.DetailsObject.Data;
+            ormGame.SteamAppId = detailsData.SteamAppId;
+            ormGame.Type = detailsData.Type;
+            ormGame.Name = detailsData.Name;
+            ormGame.RequiredAge = detailsData.RequiredAge;
+            ormGame.IsFree = detailsData.IsFree;
+            ormGame.DetailedDescription = detailsData.DetailedDescription;
+            ormGame.AboutTheGame = detailsData.AboutTheGame;
+            ormGame.ShortDescription = detailsData.ShortDescription;
+            ormGame.HeaderImage = detailsData.HeaderImage;
+            ormGame.ReleaseDate = detailsData.ReleaseDate.ToString();
+
+            ormGame.Platforms = new OrmPlatform
             {
-                cfg.AddProfile<AutoMapperProfile>(); // Add your profile here
-                cfg.CreateMap<MergedData, OrmGame>();
-            });
+                Windows = detailsData.Platforms.Windows,
+                Mac = detailsData.Platforms.Mac,
+                Linux = detailsData.Platforms.Linux,
+                OrmGame = ormGame
+            };
 
-            var mapper = config.CreateMapper();
-
-            // Using the mapper to convert the object
-            foreach (var myObject in md)
+            ormGame.SupportInfo = new OrmSupportInfo
             {
-                OrmGame myOrmClass = mapper.Map<OrmGame>(myObject);
+                Url = detailsData.SupportInfo.Url,
+                Email = detailsData.SupportInfo.Email,
+                OrmGame = ormGame
+            };
 
-                // Save object to the database here
-                // Use EF core
-            }
+            ormGame.PriceOverview = new OrmPriceOverview
+            {
+                Currency = detailsData.PriceOverview.Currency,
+                DiscountPercent = detailsData.PriceOverview.DiscountPercent,
+                FinalFormatted = detailsData.PriceOverview.FinalFormatted,
+                OrmGame = ormGame
+            };
+
+            ormGame.Recommendations = new OrmRecommendations
+            {
+                ReviewScoreDesc = mergedData.ReviewObject.QuerySummary.ReviewScoreDesc,
+                TotalReviews = mergedData.ReviewObject.QuerySummary.TotalReviews,
+                TotalPositive = mergedData.ReviewObject.QuerySummary.TotalPositive,
+                TotalNegative = mergedData.ReviewObject.QuerySummary.TotalNegative,
+                OrmGame = ormGame
+            };
+
+            ormGame.Metacritic = new OrmMetacritic
+            {
+                Score = detailsData.Metacritic.Score,
+                Url = detailsData.Metacritic.Url,
+                OrmGame = ormGame
+            };
+
+            ormGame.Background = new OrmBackground
+            {
+                Background = detailsData.Background,
+                BackgroundRaw = detailsData.BackgroundRaw,
+                OrmGame = ormGame
+            };
+
+            // ... The rest of your mapping logic ...
+
+            //if (mergedData.ReviewObject != null && mergedData.ReviewObject.QuerySummary != null)
+            //{
+            //    var reviewSummary = mergedData.ReviewObject.QuerySummary;
+
+            //    ormGame.Recommendations = new OrmRecommendations
+            //    {
+            //        OrmGame = ormGame,
+            //        ReviewScoreDesc = reviewSummary.ReviewScoreDesc,
+            //        TotalReviews = reviewSummary.TotalReviews,
+            //        TotalPositive = reviewSummary.TotalPositive,
+            //        TotalNegative = reviewSummary.TotalNegative
+            //    };
+            //}
+
+            //// Mapping for OrmRequirements
+            //if (mergedData.RequirementsObject != null)
+            //{
+            //    var requirementsData = mergedData.RequirementsObject;
+
+            //    ormGame.Requirements = new OrmRequirements
+            //    {
+            //        OrmGame = ormGame,
+            //        Minimum = requirementsData.Minimum,
+            //        Recommended = requirementsData.Recommended
+            //        // Map other properties...
+            //    };
+            //}
+
+            //// Mapping for OrmPriceOverview
+            //if (mergedData.PriceOverviewObject != null)
+            //{
+            //    var priceOverviewData = mergedData.PriceOverviewObject;
+
+            //    ormGame.PriceOverview = new OrmPriceOverview
+            //    {
+            //        OrmGame = ormGame,
+            //        Currency = priceOverviewData.Currency,
+            //        Initial = priceOverviewData.Initial,
+            //        Final = priceOverviewData.Final,
+            //        DiscountPercent = priceOverviewData.DiscountPercent
+            //        // Map other properties...
+            //    };
+            //}
+
+            return ormGame;
         }
-
     }
-    public class AutoMapperProfile : Profile
-    {
-        public AutoMapperProfile()
-        {
-            CreateMap<MergedData, OrmGame>()
-                .ForMember(dest => dest.SteamAppId, opt => opt.MapFrom(src => src.DetailsObject.Data.SteamAppid))
-                .ForMember(dest => dest.Type, opt => opt.MapFrom(src => src.DetailsObject.Data.Type))
-                .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.DetailsObject.Data.Name))
-                .ForMember(dest => dest.RequiredAge, opt => opt.MapFrom(src => src.DetailsObject.Data.RequiredAge))
-                .ForMember(dest => dest.IsFree, opt => opt.MapFrom(src => src.DetailsObject.Data.IsFree))
-                .ForMember(dest => dest.DetailedDescription, opt => opt.MapFrom(src => src.DetailsObject.Data.DetailedDescription))
-                .ForMember(dest => dest.AboutTheGame, opt => opt.MapFrom(src => src.DetailsObject.Data.AboutTheGame))
-                .ForMember(dest => dest.ShortDescription, opt => opt.MapFrom(src => src.DetailsObject.Data.ShortDescription))
-                .ForMember(dest => dest.HeaderImage, opt => opt.MapFrom(src => src.DetailsObject.Data.HeaderImage))
-                .ForMember(dest => dest.ReleaseDate, opt => opt.MapFrom(src => src.DetailsObject.Data.ReleaseDate.Date))
-                .ForMember(dest => dest.Windows, opt => opt.MapFrom(src => src.DetailsObject.Data.Platforms.Windows))
-                .ForMember(dest => dest.Mac, opt => opt.MapFrom(src => src.DetailsObject.Data.Platforms.Mac))
-                .ForMember(dest => dest.Linux, opt => opt.MapFrom(src => src.DetailsObject.Data.Platforms.Linux));
-
-            // Add other CreateMap for other classes like OrmRequirements, OrmPriceOverview, etc.
-
-            // For exampl
-        }
-    }
-    #region App settings and startup classes
+    #region App settings
     public class AppSettings
     {
         public string SteamAppDatabase { get; set; }
@@ -248,31 +326,6 @@ namespace SteamAppDetailsToSQL
             SteamAppDatabase = steamAppDatabase;
             SteamWebApi = steamWebApi;
         }
-    }
-    public class Startup
-    {
-        public IConfiguration Configuration { get; }
-        public Startup()
-        {
-            var builder = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json")
-                .AddUserSecrets<Startup>(); // Add secrets from the Secret Manager
-
-            Configuration = builder.Build();
-        }
-        public void ConfigureServices(IServiceCollection services)
-        {
-            // Registering of AppSettings in the dependency injection container
-            string steamAppDatabase = Configuration.GetValue<string>("SteamAppDatabase");
-            string steamWebApi = Configuration.GetValue<string>("SteamWebApi");
-
-            AppSettings appSettings = new(steamAppDatabase, steamWebApi);
-
-            services.AddSingleton(appSettings);
-            services.AddDbContext<SteamDbContext>(options => options.UseSqlServer(appSettings.SteamAppDatabase));
-        }
-
     }
     #endregion
     #region SteamDbContext
@@ -291,13 +344,14 @@ namespace SteamAppDetailsToSQL
         public DbSet<OrmGameDeveloper> GameDevelopers { get; set; }
         public DbSet<OrmGamePublisher> GamePublishers { get; set; }
         public DbSet<OrmRequirements> Requirements { get; set; }
+        public DbSet<OrmPlatform> Platforms { get; set; }
         public DbSet<OrmPriceOverview> PriceOverview { get; set; }
         public DbSet<OrmMetacritic> Metacritic { get; set; }
         public DbSet<OrmScreenshot> Screenshots { get; set; }
         public DbSet<OrmMovie> Movies { get; set; }
         public DbSet<OrmRecommendations> Recommendations { get; set; }
         public DbSet<OrmSupportInfo> SupportInfo { get; set; }
-        public DbSet<OrmBackground> Background { get; set; }
+        public DbSet<OrmBackground> Backgrounds { get; set; }
         public DbSet<OrmLanguage> Language { get; set; }
         public DbSet<OrmGameLanguage> GameLanguages { get; set; }
 
@@ -310,6 +364,9 @@ namespace SteamAppDetailsToSQL
         }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<OrmGame>()
+                .HasIndex(g => g.SteamAppId)
+                .IsUnique();
             modelBuilder.Entity<OrmGameDeveloper>()
                 .HasKey(gd => new { gd.GameAppId, gd.DeveloperId });
             modelBuilder.Entity<OrmGamePublisher>()
@@ -318,8 +375,12 @@ namespace SteamAppDetailsToSQL
                 .HasKey(gl => new { gl.GameAppId, gl.LanguageId });
             modelBuilder.Entity<OrmRequirements>()
                 .HasOne(r => r.OrmGame)
-                .WithOne(g => g.Requirements)
-                .HasForeignKey<OrmRequirements>(r => r.GameAppId);
+                .WithMany(g => g.Requirements)
+                .HasForeignKey(r => r.GameAppId);
+            modelBuilder.Entity<OrmPlatform>()
+                .HasOne(m => m.OrmGame)
+                .WithOne(g => g.Platforms)
+                .HasForeignKey<OrmPlatform>(m => m.GameAppId);
             modelBuilder.Entity<OrmPriceOverview>()
                 .HasOne(p => p.OrmGame)
                 .WithOne(g => g.PriceOverview)
@@ -368,15 +429,6 @@ namespace SteamAppDetailsToSQL
                 .HasMany(l => l.GameLanguages)
                 .WithOne(g => g.OrmLanguage)
                 .HasForeignKey(l => l.LanguageId);
-            //.UsingEntity<OrmGameLanguage>(gl => gl.GameLanguages);
-            //    gl => gl.HasOne(lg => lg.OrmLanguage)
-            //        .WithMany()
-            //        .HasForeignKey(lg => lg.LanguageId),
-            //    gl => gl.HasOne(lg => lg.OrmGame)
-            //        .WithMany()
-            //        .HasForeignKey(lg => lg.GameAppId),
-            //    gl => gl.HasKey(lg => new { lg.GameAppId, lg.LanguageId })
-            //);
         }
     }
     #endregion
@@ -395,15 +447,16 @@ namespace SteamAppDetailsToSQL
         public string ShortDescription { get; set; }
         public string HeaderImage { get; set; }
         public string ReleaseDate { get; set; }
-        public bool Windows { get; set; }
-        public bool Mac { get; set; }
-        public bool Linux { get; set; }
+        //public bool Windows { get; set; }
+        //public bool Mac { get; set; }
+        //public bool Linux { get; set; }
         public virtual OrmRecommendations Recommendations { get; set; }
-        public virtual OrmRequirements Requirements { get; set; }
         public virtual OrmPriceOverview PriceOverview { get; set; }
         public virtual OrmMetacritic Metacritic { get; set; }
         public virtual OrmSupportInfo SupportInfo { get; set; }
         public virtual OrmBackground Background { get; set; }
+        public virtual OrmPlatform Platforms { get; set; }
+        public virtual ICollection<OrmRequirements> Requirements { get; set; }
         public virtual ICollection<OrmGameDeveloper> GameDevelopers { get; set; }
         public virtual ICollection<OrmGamePublisher> GamePublishers { get; set; }
         public virtual ICollection<OrmScreenshot> Screenshots { get; set; }
@@ -419,6 +472,17 @@ namespace SteamAppDetailsToSQL
 
         public virtual ICollection<OrmGameDeveloper> GameDevelopers { get; set; }
     }
+    public class OrmPlatform
+    {
+        [Key]
+        public int Id { get; set; }
+        public int GameAppId { get; set; }
+        public bool Windows { get; set; }
+        public bool Mac { get; set; }
+        public bool Linux { get; set; }
+        public virtual OrmGame OrmGame { get; set; }
+    }
+
     // One publisher has multiple games - same publisher different games
     public class OrmPublisher
     {
@@ -649,7 +713,7 @@ namespace SteamAppDetailsToSQL
     public class Data
     {
         [JsonProperty("steam_appid")]
-        public int SteamAppid { get; set; }
+        public int SteamAppId { get; set; }
         [JsonProperty("type")]
         public string Type { get; set; } = "Not given";
 
@@ -714,41 +778,41 @@ namespace SteamAppDetailsToSQL
         public Recommendations? Recommendations { get; set; }
 
         [JsonProperty("release_date")]
-        public ReleaseDate? ReleaseDate { get; set; }
+        public ReleaseDate ReleaseDate { get; set; }
 
         [JsonProperty("support_info")]
-        public SupportInfo? SupportInfo { get; set; }
+        public SupportInfo SupportInfo { get; set; }
 
         [JsonProperty("background")]
-        public string? Background { get; set; }
+        public string Background { get; set; }
 
         [JsonProperty("background_raw")]
-        public string? BackgroundRaw { get; set; }
+        public string BackgroundRaw { get; set; }
     }
     public class PcRequirements
     {
         [JsonProperty("minimum")]
-        public string? Minimum { get; set; }
+        public string Minimum { get; set; }
     }
     public class LinuxRequirements
     {
         [JsonProperty("minimum")]
-        public string? Minimum { get; set; }
+        public string Minimum { get; set; }
     }
 
     public class MacRequirements
     {
         [JsonProperty("minimum")]
-        public string? Minimum { get; set; }
+        public string Minimum { get; set; }
     }
 
     public class Metacritic
     {
         [JsonProperty("score")]
-        public int? Score { get; set; }
+        public int Score { get; set; }
 
         [JsonProperty("url")]
-        public string? Url { get; set; }
+        public string Url { get; set; }
     }
 
     public class Movie
@@ -757,16 +821,16 @@ namespace SteamAppDetailsToSQL
         public int Id { get; set; }
 
         [JsonProperty("name")]
-        public string? Name { get; set; }
+        public string Name { get; set; }
 
         [JsonProperty("thumbnail")]
-        public string? Thumbnail { get; set; }
+        public string Thumbnail { get; set; }
 
         [JsonProperty("webm")]
-        public Webm? Webm { get; set; }
+        public Webm Webm { get; set; }
 
         [JsonProperty("mp4")]
-        public Mp4? Mp4 { get; set; }
+        public Mp4 Mp4 { get; set; }
 
         [JsonProperty("highlight")]
         public bool Highlight { get; set; }

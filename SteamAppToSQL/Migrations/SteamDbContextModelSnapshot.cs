@@ -46,7 +46,7 @@ namespace SteamAppToSQL.Migrations
                     b.HasIndex("GameAppId")
                         .IsUnique();
 
-                    b.ToTable("Background");
+                    b.ToTable("Backgrounds");
                 });
 
             modelBuilder.Entity("SteamAppDetailsToSQL.OrmDeveloper", b =>
@@ -89,12 +89,6 @@ namespace SteamAppToSQL.Migrations
                     b.Property<bool>("IsFree")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("Linux")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("Mac")
-                        .HasColumnType("bit");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -114,10 +108,10 @@ namespace SteamAppToSQL.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<bool>("Windows")
-                        .HasColumnType("bit");
-
                     b.HasKey("SteamAppId");
+
+                    b.HasIndex("SteamAppId")
+                        .IsUnique();
 
                     b.ToTable("Game");
                 });
@@ -264,6 +258,34 @@ namespace SteamAppToSQL.Migrations
                     b.ToTable("Movie");
                 });
 
+            modelBuilder.Entity("SteamAppDetailsToSQL.OrmPlatform", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("GameAppId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Linux")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("Mac")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("Windows")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameAppId")
+                        .IsUnique();
+
+                    b.ToTable("Platforms");
+                });
+
             modelBuilder.Entity("SteamAppDetailsToSQL.OrmPriceOverview", b =>
                 {
                     b.Property<int>("Id")
@@ -364,8 +386,7 @@ namespace SteamAppToSQL.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("GameAppId")
-                        .IsUnique();
+                    b.HasIndex("GameAppId");
 
                     b.ToTable("Requirements");
                 });
@@ -513,6 +534,17 @@ namespace SteamAppToSQL.Migrations
                     b.Navigation("OrmGame");
                 });
 
+            modelBuilder.Entity("SteamAppDetailsToSQL.OrmPlatform", b =>
+                {
+                    b.HasOne("SteamAppDetailsToSQL.OrmGame", "OrmGame")
+                        .WithOne("Platforms")
+                        .HasForeignKey("SteamAppDetailsToSQL.OrmPlatform", "GameAppId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OrmGame");
+                });
+
             modelBuilder.Entity("SteamAppDetailsToSQL.OrmPriceOverview", b =>
                 {
                     b.HasOne("SteamAppDetailsToSQL.OrmGame", "OrmGame")
@@ -538,8 +570,8 @@ namespace SteamAppToSQL.Migrations
             modelBuilder.Entity("SteamAppDetailsToSQL.OrmRequirements", b =>
                 {
                     b.HasOne("SteamAppDetailsToSQL.OrmGame", "OrmGame")
-                        .WithOne("Requirements")
-                        .HasForeignKey("SteamAppDetailsToSQL.OrmRequirements", "GameAppId")
+                        .WithMany("Requirements")
+                        .HasForeignKey("GameAppId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -589,14 +621,16 @@ namespace SteamAppToSQL.Migrations
 
                     b.Navigation("Movies");
 
+                    b.Navigation("Platforms")
+                        .IsRequired();
+
                     b.Navigation("PriceOverview")
                         .IsRequired();
 
                     b.Navigation("Recommendations")
                         .IsRequired();
 
-                    b.Navigation("Requirements")
-                        .IsRequired();
+                    b.Navigation("Requirements");
 
                     b.Navigation("Screenshots");
 
