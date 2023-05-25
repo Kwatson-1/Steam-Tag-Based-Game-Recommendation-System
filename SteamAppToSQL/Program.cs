@@ -54,20 +54,19 @@ namespace SteamAppDetailsToSQL
             //var appDataList = GetAllAppData(await appList);
 
             // Testing for individual app
-            //int appId = 294100; // Replace with the desired app ID
-            //var details = await FetchAppDetailsAsync(appId);
-            //var reviews = await FetchAppReviewsAsync(appId);
-            //MergedData md = new(details, reviews);
+            int appId = 294100; // Replace with the desired app ID
+            var details = await FetchAppDetailsAsync(appId);
+            var reviews = await FetchAppReviewsAsync(appId);
+            MergedData md = new(details, reviews);
         }
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
                 .ConfigureServices((hostContext, services) =>
                 {
-                    // Configure services
+                    // Configured services
                     var configuration = new ConfigurationBuilder()
                         .SetBasePath(Directory.GetCurrentDirectory())
                         .AddJsonFile("appsettings.json")
-                        //.AddUserSecrets<Program>() // Add secrets from the Secret Manager
                         .Build();
 
                     AppSettings appSettings = new AppSettings(
@@ -205,114 +204,234 @@ namespace SteamAppDetailsToSQL
             }
             return appDataList;
         }
-        public OrmGame MapMergedDataToOrmGame(MergedData mergedData)
+        public static DtoGame MapMergedDataToDto(MergedData mergedData, SteamDbContext steamDbContext)
         {
-            OrmGame ormGame = new();
+            // Game
+            DtoGame dtoGame = new();
+            // Relative path shortcuts
             var detailsData = mergedData.DetailsObject.Data;
-            ormGame.SteamAppId = detailsData.SteamAppId;
-            ormGame.Type = detailsData.Type;
-            ormGame.Name = detailsData.Name;
-            ormGame.RequiredAge = detailsData.RequiredAge;
-            ormGame.IsFree = detailsData.IsFree;
-            ormGame.DetailedDescription = detailsData.DetailedDescription;
-            ormGame.AboutTheGame = detailsData.AboutTheGame;
-            ormGame.ShortDescription = detailsData.ShortDescription;
-            ormGame.HeaderImage = detailsData.HeaderImage;
-            ormGame.ReleaseDate = detailsData.ReleaseDate.ToString();
+            var reviewsData = mergedData.ReviewObject.QuerySummary;
+            dtoGame.SteamAppId = detailsData.SteamAppId;
+            dtoGame.Type = detailsData.Type;
+            dtoGame.Name = detailsData.Name;
+            dtoGame.RequiredAge = detailsData.RequiredAge;
+            dtoGame.IsFree = detailsData.IsFree;
+            dtoGame.DetailedDescription = detailsData.DetailedDescription;
+            dtoGame.AboutTheGame = detailsData.AboutTheGame;
+            dtoGame.ShortDescription = detailsData.ShortDescription;
+            dtoGame.HeaderImage = detailsData.HeaderImage;
+            dtoGame.ReleaseDate = detailsData.ReleaseDate.ToString();
 
-            ormGame.Platforms = new OrmPlatform
+            // Platform
+            dtoGame.Platforms = new DtoPlatform
             {
+                DtoGame = dtoGame,
                 Windows = detailsData.Platforms.Windows,
                 Mac = detailsData.Platforms.Mac,
-                Linux = detailsData.Platforms.Linux,
-                OrmGame = ormGame
+                Linux = detailsData.Platforms.Linux
             };
 
-            ormGame.SupportInfo = new OrmSupportInfo
+            // Support Info
+            dtoGame.SupportInfo = new DtoSupportInfo
             {
+                DtoGame = dtoGame,
                 Url = detailsData.SupportInfo.Url,
-                Email = detailsData.SupportInfo.Email,
-                OrmGame = ormGame
+                Email = detailsData.SupportInfo.Email
             };
 
-            ormGame.PriceOverview = new OrmPriceOverview
+            // Price Overview
+            if (detailsData.PriceOverview != null)
             {
-                Currency = detailsData.PriceOverview.Currency,
-                DiscountPercent = detailsData.PriceOverview.DiscountPercent,
-                FinalFormatted = detailsData.PriceOverview.FinalFormatted,
-                OrmGame = ormGame
-            };
+                dtoGame.PriceOverview = new DtoPriceOverview
+                {
+                    DtoGame = dtoGame,
+                    Currency = detailsData.PriceOverview.Currency,
+                    DiscountPercent = detailsData.PriceOverview.DiscountPercent,
+                    FinalFormatted = detailsData.PriceOverview.FinalFormatted
+                };
+            }
 
-            ormGame.Recommendations = new OrmRecommendations
+            // Recommendations
+            if (detailsData.Recommendations != null)
             {
-                ReviewScoreDesc = mergedData.ReviewObject.QuerySummary.ReviewScoreDesc,
-                TotalReviews = mergedData.ReviewObject.QuerySummary.TotalReviews,
-                TotalPositive = mergedData.ReviewObject.QuerySummary.TotalPositive,
-                TotalNegative = mergedData.ReviewObject.QuerySummary.TotalNegative,
-                OrmGame = ormGame
-            };
+                dtoGame.Recommendations = new DtoRecommendations
+                {
+                    DtoGame = dtoGame,
+                    ReviewScoreDesc = reviewsData.ReviewScoreDesc,
+                    TotalReviews = reviewsData.TotalReviews,
+                    TotalPositive = reviewsData.TotalPositive,
+                    TotalNegative = reviewsData.TotalNegative
+                };
+            }
 
-            ormGame.Metacritic = new OrmMetacritic
+            // Metacritic
+            if (detailsData.Metacritic != null)
             {
-                Score = detailsData.Metacritic.Score,
-                Url = detailsData.Metacritic.Url,
-                OrmGame = ormGame
-            };
+                dtoGame.Metacritic = new DtoMetacritic
+                {
+                    DtoGame = dtoGame,
+                    Score = detailsData.Metacritic.Score,
+                    Url = detailsData.Metacritic.Url
+                };
+            }
 
-            ormGame.Background = new OrmBackground
+
+            if (detailsData.Background != null && detailsData.BackgroundRaw != null)
             {
-                Background = detailsData.Background,
-                BackgroundRaw = detailsData.BackgroundRaw,
-                OrmGame = ormGame
-            };
+                // Backgrounds
+                dtoGame.Backgrounds = new DtoBackground
+                {
+                    DtoGame = dtoGame,
+                    Background = detailsData.Background,
+                    BackgroundRaw = detailsData.BackgroundRaw
+                };
+            }
 
-            // ... The rest of your mapping logic ...
+            // Developers and GameDevelopers
+            dtoGame.GameDevelopers = new List<DtoGameDeveloper>();
+            if (detailsData.Developers != null)
+            {
+                foreach (var developer in detailsData.Developers)
+                {
+                    // Check if developer exists in the database
+                    var dtoDeveloper = steamDbContext.Developers.FirstOrDefault(d => d.Name == developer);
 
-            //if (mergedData.ReviewObject != null && mergedData.ReviewObject.QuerySummary != null)
-            //{
-            //    var reviewSummary = mergedData.ReviewObject.QuerySummary;
+                    // If developer does not exist, create a new one
+                    if (dtoDeveloper == null)
+                    {
+                        dtoDeveloper = new DtoDeveloper { Name = developer };
+                        steamDbContext.Developers.Add(dtoDeveloper);
+                    }
 
-            //    ormGame.Recommendations = new OrmRecommendations
-            //    {
-            //        OrmGame = ormGame,
-            //        ReviewScoreDesc = reviewSummary.ReviewScoreDesc,
-            //        TotalReviews = reviewSummary.TotalReviews,
-            //        TotalPositive = reviewSummary.TotalPositive,
-            //        TotalNegative = reviewSummary.TotalNegative
-            //    };
-            //}
+                    dtoGame.GameDevelopers.Add(new DtoGameDeveloper
+                    {
+                        DtoGame = dtoGame,
+                        DtoDeveloper = dtoDeveloper
+                    });
+                }
+                //steamDbContext.SaveChanges();
+            }
 
-            //// Mapping for OrmRequirements
-            //if (mergedData.RequirementsObject != null)
-            //{
-            //    var requirementsData = mergedData.RequirementsObject;
+            // Publishers and Game Publishers
+            if (detailsData.Publishers != null)
+            {
+                dtoGame.GamePublishers = new List<DtoGamePublisher>();
+                foreach (var publisher in detailsData.Publishers)
+                {
+                    // Check if publisher exists in the database
+                    var dtoPublisher = steamDbContext.Publishers.FirstOrDefault(p => p.Name == publisher);
 
-            //    ormGame.Requirements = new OrmRequirements
-            //    {
-            //        OrmGame = ormGame,
-            //        Minimum = requirementsData.Minimum,
-            //        Recommended = requirementsData.Recommended
-            //        // Map other properties...
-            //    };
-            //}
+                    // If publisher does not exist, create a new one
+                    if (dtoPublisher == null)
+                    {
+                        dtoPublisher = new DtoPublisher { Name = publisher };
+                        steamDbContext.Publishers.Add(dtoPublisher);
+                    }
 
-            //// Mapping for OrmPriceOverview
-            //if (mergedData.PriceOverviewObject != null)
-            //{
-            //    var priceOverviewData = mergedData.PriceOverviewObject;
+                    dtoGame.GamePublishers.Add(new DtoGamePublisher
+                    {
+                        DtoGame = dtoGame,
+                        DtoPublisher = dtoPublisher
+                    });
+                }
+            }
 
-            //    ormGame.PriceOverview = new OrmPriceOverview
-            //    {
-            //        OrmGame = ormGame,
-            //        Currency = priceOverviewData.Currency,
-            //        Initial = priceOverviewData.Initial,
-            //        Final = priceOverviewData.Final,
-            //        DiscountPercent = priceOverviewData.DiscountPercent
-            //        // Map other properties...
-            //    };
-            //}
+            // Languages and Game Languages
+            if (detailsData.SupportedLanguages != null)
+            {
+                dtoGame.GameLanguages = new List<DtoGameLanguage>();
+                var languages = detailsData.SupportedLanguages.Split(',');
 
-            return ormGame;
+                foreach (var language in languages)
+                {
+                    // Check if language exists in the database
+                    var dtoLanguage = steamDbContext.Language.FirstOrDefault(l => l.Language == language);
+
+                    // If language does not exist, create a new one
+                    if (dtoLanguage == null)
+                    {
+                        dtoLanguage = new DtoLanguage { Language = language };
+                        steamDbContext.Language.Add(dtoLanguage);
+                    }
+
+                    dtoGame.GameLanguages.Add(new DtoGameLanguage
+                    {
+                        DtoGame = dtoGame,
+                        DtoLanguage = dtoLanguage
+                    });
+                }
+            }
+
+            // Requirements
+            if (detailsData.PcRequirements != null || detailsData.LinuxRequirements != null || detailsData.MacRequirements != null)
+            {
+                dtoGame.Requirements = new List<DtoRequirements>();
+
+                if (detailsData.LinuxRequirements != null)
+                {
+                    dtoGame.Requirements.Add(new DtoRequirements
+                    {
+                        DtoGame = dtoGame,
+                        Platform = "Linux",
+                        Minimum = detailsData.LinuxRequirements.Minimum
+                    });
+                }
+                if (detailsData.PcRequirements != null)
+                {
+                    dtoGame.Requirements.Add(new DtoRequirements
+                    {
+                        DtoGame = dtoGame,
+                        Platform = "Windows",
+                        Minimum = detailsData.PcRequirements.Minimum
+                    });
+                }
+                if (detailsData.MacRequirements != null)
+                {
+                    dtoGame.Requirements.Add(new DtoRequirements
+                    {
+                        DtoGame = dtoGame,
+                        Platform = "Mac",
+                        Minimum = detailsData.MacRequirements.Minimum
+                    });
+                }
+            }
+            // Movies
+            if (detailsData.Movies != null)
+            {
+                dtoGame.Movies = new List<DtoMovie>();
+
+                foreach (var movie in detailsData.Movies)
+                {
+                    var dtoMovie = new DtoMovie
+                    {
+                        DtoGame = dtoGame,
+                        //MovieId = movie.Id,
+                        Name = movie.Name,
+                        Thumbnail = movie.Thumbnail,
+                        Webm480 = movie.Webm?._480,
+                        WebmMax = movie.Webm?.Max,
+                        Mp4480 = movie.Mp4?._480,
+                        Mp4Max = movie.Mp4?.Max,
+                        Highlight = movie.Highlight
+                    };
+                    dtoGame.Movies.Add(dtoMovie);
+                }
+            }
+            // Screenshots
+            if (detailsData.Screenshots != null)
+            {
+                dtoGame.Screenshots = new List<DtoScreenshot>();
+                foreach (var screenshot in detailsData.Screenshots)
+                {
+                    dtoGame.Screenshots.Add(new DtoScreenshot
+                    {
+                        DtoGame = dtoGame,
+                        PathThumbnail = screenshot.PathThumbnail,
+                        PathFull = screenshot.PathFull
+                    });
+                }
+            }
+            return dtoGame;
         }
     }
     #region App settings
@@ -326,115 +445,177 @@ namespace SteamAppDetailsToSQL
             SteamAppDatabase = steamAppDatabase;
             SteamWebApi = steamWebApi;
         }
+        public AppSettings()
+        {
+        }
     }
     #endregion
     #region SteamDbContext
     // Creates a DbContext class that represents the database
-    public class SteamDbContext : DbContext
+    public sealed class SteamDbContext : DbContext
     {
-        private readonly AppSettings _appSettings;
+        //private readonly AppSettings _appSettings;
 
-        public SteamDbContext(AppSettings appSettings)
+        //public SteamDbContext(DbContextOptions<SteamDbContext> options, AppSettings appSettings)
+        //    : base(options)
+        //{
+        //    _appSettings = appSettings;
+        //}
+        public SteamDbContext(DbContextOptions<SteamDbContext> options)
+            : base(options)
         {
-            _appSettings = appSettings;
-        }
-        public DbSet<OrmGame> Game { get; set; }
-        public DbSet<OrmDeveloper> Developers { get; set; }
-        public DbSet<OrmPublisher> Publishers { get; set; }
-        public DbSet<OrmGameDeveloper> GameDevelopers { get; set; }
-        public DbSet<OrmGamePublisher> GamePublishers { get; set; }
-        public DbSet<OrmRequirements> Requirements { get; set; }
-        public DbSet<OrmPlatform> Platforms { get; set; }
-        public DbSet<OrmPriceOverview> PriceOverview { get; set; }
-        public DbSet<OrmMetacritic> Metacritic { get; set; }
-        public DbSet<OrmScreenshot> Screenshots { get; set; }
-        public DbSet<OrmMovie> Movies { get; set; }
-        public DbSet<OrmRecommendations> Recommendations { get; set; }
-        public DbSet<OrmSupportInfo> SupportInfo { get; set; }
-        public DbSet<OrmBackground> Backgrounds { get; set; }
-        public DbSet<OrmLanguage> Language { get; set; }
-        public DbSet<OrmGameLanguage> GameLanguages { get; set; }
 
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        {
-            // Set the connection string for your database
-            //string connectionString = Program.GetConnectionString("SteamAppDatabase");
-            string connectionString = _appSettings.SteamAppDatabase;
-            optionsBuilder.UseSqlServer(connectionString);
         }
+        public DbSet<DtoGame> Game { get; set; }
+        public DbSet<DtoDeveloper> Developers { get; set; }
+        public DbSet<DtoPublisher> Publishers { get; set; }
+        public DbSet<DtoGameDeveloper> GameDevelopers { get; set; }
+        public DbSet<DtoGamePublisher> GamePublishers { get; set; }
+        public DbSet<DtoRequirements> Requirements { get; set; }
+        public DbSet<DtoPlatform> Platforms { get; set; }
+        public DbSet<DtoPriceOverview> PriceOverview { get; set; }
+        public DbSet<DtoMetacritic> Metacritic { get; set; }
+        public DbSet<DtoScreenshot> Screenshots { get; set; }
+        public DbSet<DtoMovie> Movies { get; set; }
+        public DbSet<DtoRecommendations> Recommendations { get; set; }
+        public DbSet<DtoSupportInfo> SupportInfo { get; set; }
+        public DbSet<DtoBackground> Backgrounds { get; set; }
+        public DbSet<DtoLanguage> Language { get; set; }
+        public DbSet<DtoGameLanguage> GameLanguages { get; set; }
+
+        // Code deprecated in favor of dependency injection method
+        //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        //{
+        //    // Set the connection string for your database
+        //    //string connectionString = Program.GetConnectionString("SteamAppDatabase");
+        //    string connectionString = _appSettings.SteamAppDatabase;
+        //    optionsBuilder.UseSqlServer(connectionString);
+        //}
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<OrmGame>()
+            // Game
+            modelBuilder.Entity<DtoGame>()
                 .HasIndex(g => g.SteamAppId)
                 .IsUnique();
-            modelBuilder.Entity<OrmGameDeveloper>()
+            // Game -> GameDev
+            modelBuilder.Entity<DtoGame>()
+                .HasMany(g => g.GameDevelopers)
+                .WithOne(gd => gd.DtoGame)
+                .HasForeignKey(gd => gd.GameAppId);
+            // Game -> GamePub
+            modelBuilder.Entity<DtoGame>()
+                .HasMany(g => g.GamePublishers)
+                .WithOne(gp => gp.DtoGame)
+                .HasForeignKey(gp => gp.GameAppId);
+            // Game -> GameLang
+            modelBuilder.Entity<DtoGame>()
+                .HasMany(g => g.GameLanguages)
+                .WithOne(gl => gl.DtoGame)
+                .HasForeignKey(gl => gl.GameAppId);
+
+            // Game Dev
+            modelBuilder.Entity<DtoGameDeveloper>()
                 .HasKey(gd => new { gd.GameAppId, gd.DeveloperId });
-            modelBuilder.Entity<OrmGamePublisher>()
+
+            // Game Publisher
+            modelBuilder.Entity<DtoGamePublisher>()
                 .HasKey(gp => new { gp.GameAppId, gp.PublisherId });
-            modelBuilder.Entity<OrmGameLanguage>()
+
+            // Game Lang
+            modelBuilder.Entity<DtoGameLanguage>()
                 .HasKey(gl => new { gl.GameAppId, gl.LanguageId });
-            modelBuilder.Entity<OrmRequirements>()
-                .HasOne(r => r.OrmGame)
+
+            // Requirements
+            modelBuilder.Entity<DtoRequirements>()
+                .HasOne(r => r.DtoGame)
                 .WithMany(g => g.Requirements)
                 .HasForeignKey(r => r.GameAppId);
-            modelBuilder.Entity<OrmPlatform>()
-                .HasOne(m => m.OrmGame)
+
+            // Platform
+            modelBuilder.Entity<DtoPlatform>()
+                .HasOne(m => m.DtoGame)
                 .WithOne(g => g.Platforms)
-                .HasForeignKey<OrmPlatform>(m => m.GameAppId);
-            modelBuilder.Entity<OrmPriceOverview>()
-                .HasOne(p => p.OrmGame)
+                .HasForeignKey<DtoPlatform>(m => m.GameAppId);
+
+            // Price Overview
+            modelBuilder.Entity<DtoPriceOverview>()
+                .HasOne(p => p.DtoGame)
                 .WithOne(g => g.PriceOverview)
-                .HasForeignKey<OrmPriceOverview>(p => p.GameAppId);
-            modelBuilder.Entity<OrmMetacritic>()
-                .HasOne(m => m.OrmGame)
+                .HasForeignKey<DtoPriceOverview>(p => p.GameAppId);
+
+            // Metacritic
+            modelBuilder.Entity<DtoMetacritic>()
+                .HasOne(m => m.DtoGame)
                 .WithOne(g => g.Metacritic)
-                .HasForeignKey<OrmMetacritic>(m => m.GameAppId);
-            modelBuilder.Entity<OrmScreenshot>()
-                .HasOne(s => s.OrmGame)
+                .HasForeignKey<DtoMetacritic>(m => m.GameAppId);
+
+            // Screenshot
+            modelBuilder.Entity<DtoScreenshot>()
+                .HasOne(s => s.DtoGame)
                 .WithMany(g => g.Screenshots)
                 .HasForeignKey(s => s.GameAppId);
-            modelBuilder.Entity<OrmMovie>()
-                .HasOne(m => m.OrmGame)
+
+            // Movie
+            modelBuilder.Entity<DtoMovie>()
+                .HasOne(m => m.DtoGame)
                 .WithMany(g => g.Movies)
                 .HasForeignKey(m => m.GameAppId);
-            modelBuilder.Entity<OrmRecommendations>()
-                .HasOne(r => r.OrmGame)
+
+            // Recommendations
+            modelBuilder.Entity<DtoRecommendations>()
+                .HasOne(r => r.DtoGame)
                 .WithOne(g => g.Recommendations)
-                .HasForeignKey<OrmRecommendations>(r => r.GameAppId);
-            modelBuilder.Entity<OrmSupportInfo>()
-                .HasOne(s => s.OrmGame)
+                .HasForeignKey<DtoRecommendations>(r => r.GameAppId);
+
+            // SupportInfo
+            modelBuilder.Entity<DtoSupportInfo>()
+                .HasOne(s => s.DtoGame)
                 .WithOne(g => g.SupportInfo)
-                .HasForeignKey<OrmSupportInfo>(s => s.GameAppId);
-            modelBuilder.Entity<OrmBackground>()
-                .HasOne(b => b.OrmGame)
-                .WithOne(g => g.Background)
-                .HasForeignKey<OrmBackground>(b => b.GameAppId);
-            modelBuilder.Entity<OrmGame>()
-                .HasMany(g => g.GameDevelopers)
-                .WithOne(gd => gd.OrmGame)
-                .HasForeignKey(gd => gd.GameAppId);
-            modelBuilder.Entity<OrmGame>()
-                .HasMany(g => g.GamePublishers)
-                .WithOne(gp => gp.OrmGame)
-                .HasForeignKey(gp => gp.GameAppId);
-            modelBuilder.Entity<OrmDeveloper>()
+                .HasForeignKey<DtoSupportInfo>(s => s.GameAppId);
+
+            // Background
+            modelBuilder.Entity<DtoBackground>()
+                .HasOne(b => b.DtoGame)
+                .WithOne(g => g.Backgrounds)
+                .HasForeignKey<DtoBackground>(b => b.GameAppId);
+
+            // Developer
+            modelBuilder.Entity<DtoDeveloper>()
+                .HasIndex(p => p.Name)
+                .IsUnique();
+
+            modelBuilder.Entity<DtoDeveloper>()
                 .HasMany(d => d.GameDevelopers)
-                .WithOne(gd => gd.OrmDeveloper)
+                .WithOne(gd => gd.DtoDeveloper)
                 .HasForeignKey(gd => gd.DeveloperId);
-            modelBuilder.Entity<OrmPublisher>()
+
+            // Publisher
+            modelBuilder.Entity<DtoPublisher>()
+                .HasIndex(p => p.Name)
+                .IsUnique();
+
+            modelBuilder.Entity<DtoPublisher>()
                 .HasMany(p => p.GamePublishers)
-                .WithOne(gp => gp.OrmPublisher)
+                .WithOne(gp => gp.DtoPublisher)
                 .HasForeignKey(gp => gp.PublisherId);
-            modelBuilder.Entity<OrmLanguage>()
+
+            // Language
+            modelBuilder.Entity<DtoLanguage>()
+                .HasIndex(l => l.Language)
+                .IsUnique();
+
+            modelBuilder.Entity<DtoLanguage>()
                 .HasMany(l => l.GameLanguages)
-                .WithOne(g => g.OrmLanguage)
+                .WithOne(g => g.DtoLanguage)
                 .HasForeignKey(l => l.LanguageId);
+
+
         }
     }
     #endregion
-    #region ORM classes
+    #region DTO classes
     [Table("Game")]
-    public class OrmGame
+    public class DtoGame
     {
         [Key]
         public int SteamAppId { get; set; }
@@ -447,32 +628,29 @@ namespace SteamAppDetailsToSQL
         public string ShortDescription { get; set; }
         public string HeaderImage { get; set; }
         public string ReleaseDate { get; set; }
-        //public bool Windows { get; set; }
-        //public bool Mac { get; set; }
-        //public bool Linux { get; set; }
-        public virtual OrmRecommendations Recommendations { get; set; }
-        public virtual OrmPriceOverview PriceOverview { get; set; }
-        public virtual OrmMetacritic Metacritic { get; set; }
-        public virtual OrmSupportInfo SupportInfo { get; set; }
-        public virtual OrmBackground Background { get; set; }
-        public virtual OrmPlatform Platforms { get; set; }
-        public virtual ICollection<OrmRequirements> Requirements { get; set; }
-        public virtual ICollection<OrmGameDeveloper> GameDevelopers { get; set; }
-        public virtual ICollection<OrmGamePublisher> GamePublishers { get; set; }
-        public virtual ICollection<OrmScreenshot> Screenshots { get; set; }
-        public virtual ICollection<OrmMovie> Movies { get; set; }
-        public virtual ICollection<OrmGameLanguage> GameLanguages { get; set; }
+        public virtual DtoRecommendations Recommendations { get; set; }
+        public virtual DtoPriceOverview PriceOverview { get; set; }
+        public virtual DtoMetacritic Metacritic { get; set; }
+        public virtual DtoSupportInfo SupportInfo { get; set; }
+        public virtual DtoBackground Backgrounds { get; set; }
+        public virtual DtoPlatform Platforms { get; set; }
+        public virtual ICollection<DtoRequirements> Requirements { get; set; }
+        public virtual ICollection<DtoGameDeveloper> GameDevelopers { get; set; }
+        public virtual ICollection<DtoGamePublisher> GamePublishers { get; set; }
+        public virtual ICollection<DtoScreenshot> Screenshots { get; set; }
+        public virtual ICollection<DtoMovie> Movies { get; set; }
+        public virtual ICollection<DtoGameLanguage> GameLanguages { get; set; }
     }
     // One developer has multiple games - same dev different game
-    public class OrmDeveloper
+    public class DtoDeveloper
     {
         [Key]
         public int Id { get; set; }
         public string Name { get; set; }
 
-        public virtual ICollection<OrmGameDeveloper> GameDevelopers { get; set; }
+        public virtual ICollection<DtoGameDeveloper> GameDevelopers { get; set; }
     }
-    public class OrmPlatform
+    public class DtoPlatform
     {
         [Key]
         public int Id { get; set; }
@@ -480,20 +658,20 @@ namespace SteamAppDetailsToSQL
         public bool Windows { get; set; }
         public bool Mac { get; set; }
         public bool Linux { get; set; }
-        public virtual OrmGame OrmGame { get; set; }
+        public virtual DtoGame DtoGame { get; set; }
     }
 
     // One publisher has multiple games - same publisher different games
-    public class OrmPublisher
+    public class DtoPublisher
     {
         [Key]
         public int Id { get; set; }
         public string Name { get; set; }
 
-        public virtual ICollection<OrmGamePublisher> GamePublishers { get; set; }
+        public virtual ICollection<DtoGamePublisher> GamePublishers { get; set; }
     }
     // One GameDeveloper has one game and one developer
-    public class OrmGameDeveloper
+    public class DtoGameDeveloper
     {
         [Key, Column(Order = 0)]
         public int GameAppId { get; set; }
@@ -501,11 +679,11 @@ namespace SteamAppDetailsToSQL
         [Key, Column(Order = 1)]
         public int DeveloperId { get; set; }
 
-        public virtual OrmGame OrmGame { get; set; }
-        public virtual OrmDeveloper OrmDeveloper { get; set; }
+        public virtual DtoGame DtoGame { get; set; }
+        public virtual DtoDeveloper DtoDeveloper { get; set; }
     }
     // One GamePublisher has one game and one publisher
-    public class OrmGamePublisher
+    public class DtoGamePublisher
     {
         [Key, Column(Order = 0)]
         public int GameAppId { get; set; }
@@ -513,11 +691,11 @@ namespace SteamAppDetailsToSQL
         [Key, Column(Order = 1)]
         public int PublisherId { get; set; }
 
-        public virtual OrmGame OrmGame { get; set; }
-        public virtual OrmPublisher OrmPublisher { get; set; }
+        public virtual DtoGame DtoGame { get; set; }
+        public virtual DtoPublisher DtoPublisher { get; set; }
     }
     // Requirement has one Game and Game has one Requirement
-    public class OrmRequirements
+    public class DtoRequirements
     {
         [Key]
         public int Id { get; set; }
@@ -525,10 +703,10 @@ namespace SteamAppDetailsToSQL
         public string Platform { get; set; }
         public string Minimum { get; set; }
 
-        public virtual OrmGame OrmGame { get; set; }
+        public virtual DtoGame DtoGame { get; set; }
     }
     // PriceOverview has one Game and Game has one PriceOverview
-    public class OrmPriceOverview
+    public class DtoPriceOverview
     {
         [Key]
         public int Id { get; set; }
@@ -537,10 +715,10 @@ namespace SteamAppDetailsToSQL
         public int? DiscountPercent { get; set; }
         public string FinalFormatted { get; set; }
 
-        public virtual OrmGame OrmGame { get; set; }
+        public virtual DtoGame DtoGame { get; set; }
     }
     // Metacritic has one Game and Game has one Metacritic
-    public class OrmMetacritic
+    public class DtoMetacritic
     {
         [Key]
         public int Id { get; set; }
@@ -548,26 +726,26 @@ namespace SteamAppDetailsToSQL
         public int? Score { get; set; }
         public string Url { get; set; }
 
-        public virtual OrmGame OrmGame { get; set; }
+        public virtual DtoGame DtoGame { get; set; }
     }
     // Screenshot has one game - game has multiple screenshots
     [Table("Screenshot")]
-    public class OrmScreenshot
+    public class DtoScreenshot
     {
         public int Id { get; set; }
         public int GameAppId { get; set; }
         public string PathThumbnail { get; set; }
         public string PathFull { get; set; }
         [ForeignKey("GameAppId")]
-        public OrmGame OrmGame { get; set; }
+        public DtoGame DtoGame { get; set; }
     }
     // Movie has one game - game has multiple movies
     [Table("Movie")]
-    public class OrmMovie
+    public class DtoMovie
     {
         public int Id { get; set; }
         public int GameAppId { get; set; }
-        public int MovieId { get; set; }
+        //public int MovieId { get; set; }
         public string Name { get; set; }
         public string Thumbnail { get; set; }
         public string Webm480 { get; set; }
@@ -576,17 +754,18 @@ namespace SteamAppDetailsToSQL
         public string Mp4Max { get; set; }
         public bool Highlight { get; set; }
         [ForeignKey("GameAppId")]
-        public OrmGame OrmGame { get; set; }
+        public DtoGame DtoGame { get; set; }
     }
     //  Language has many game languages (same language different game) - game has many game languages (same game different languages)
-    public class OrmLanguage
+    public class DtoLanguage
     {
+        [Key]
         public int Id { get; set; }
         public string Language { get; set; }
-        public virtual ICollection<OrmGameLanguage> GameLanguages { get; set; }
+        public virtual ICollection<DtoGameLanguage> GameLanguages { get; set; }
     }
     // Each game languages has one game and one language
-    public class OrmGameLanguage
+    public class DtoGameLanguage
     {
         [Key]
         [Column(Order = 0)]
@@ -597,14 +776,15 @@ namespace SteamAppDetailsToSQL
         public int LanguageId { get; set; }
 
         [ForeignKey(nameof(GameAppId))]
-        public OrmGame OrmGame { get; set; }
+        public DtoGame DtoGame { get; set; }
 
         [ForeignKey(nameof(LanguageId))]
-        public OrmLanguage OrmLanguage { get; set; }
+        public DtoLanguage DtoLanguage { get; set; }
     }
     // Each recommendations has one game - game has one recommendations
-    public class OrmRecommendations
+    public class DtoRecommendations
     {
+        [Key]
         public int Id { get; set; }
         public int GameAppId { get; set; }
         public string ReviewScoreDesc { get; set; }
@@ -613,29 +793,31 @@ namespace SteamAppDetailsToSQL
         public int TotalNegative { get; set; }
 
         [ForeignKey(nameof(GameAppId))]
-        public OrmGame OrmGame { get; set; }
+        public DtoGame DtoGame { get; set; }
     }
     // Each support info has one game and each game has one support info
-    public class OrmSupportInfo
+    public class DtoSupportInfo
     {
+        [Key]
         public int Id { get; set; }
         public int GameAppId { get; set; }
         public string Url { get; set; }
         public string Email { get; set; }
 
         [ForeignKey(nameof(GameAppId))]
-        public OrmGame OrmGame { get; set; }
+        public DtoGame DtoGame { get; set; }
     }
     // Background has one game and game has one background
-    public class OrmBackground
+    public class DtoBackground
     {
+        [Key]
         public int Id { get; set; }
         public int GameAppId { get; set; }
         public string Background { get; set; }
         public string BackgroundRaw { get; set; }
 
         [ForeignKey(nameof(GameAppId))]
-        public OrmGame OrmGame { get; set; }
+        public DtoGame DtoGame { get; set; }
     }
     #endregion
     #region GetSteamApps Class
@@ -835,7 +1017,14 @@ namespace SteamAppDetailsToSQL
         [JsonProperty("highlight")]
         public bool Highlight { get; set; }
     }
+    public class Webm
+    {
+        [JsonProperty("480")]
+        public string? _480 { get; set; }
 
+        [JsonProperty("max")]
+        public string? Max { get; set; }
+    }
     public class Mp4
     {
         [JsonProperty("480")]
@@ -913,16 +1102,6 @@ namespace SteamAppDetailsToSQL
         [JsonProperty("email")]
         public string? Email { get; set; }
     }
-
-    public class Webm
-    {
-        [JsonProperty("480")]
-        public string? _480 { get; set; }
-
-        [JsonProperty("max")]
-        public string? Max { get; set; }
-    }
-
     #endregion
 
 }
