@@ -24,10 +24,10 @@ using System.IO;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration.Json;
 using Microsoft.Extensions.Options;
-using AutoMapper;
 using System.Collections;
 using Microsoft.Extensions.Hosting;
-
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore.Design;
 /* 
 Developer: Kyle Watson
 Date: 18/04/2023
@@ -46,41 +46,35 @@ namespace SteamAppDetailsToSQL
 {
     internal class Program
     {
-        //public static string steamWebApiKey = "81410A991EDD3F3DDDF9177C3DB453C9";
         public static async Task Main(string[] args)
         {
-            CreateHostBuilder(args).Build().Run();
-            //var appList = UpdateGetAppList();
-            //var appDataList = GetAllAppData(await appList);
-
             // Testing for individual app
             int appId = 294100; // Replace with the desired app ID
             var details = await FetchAppDetailsAsync(appId);
             var reviews = await FetchAppReviewsAsync(appId);
             MergedData md = new(details, reviews);
+
+            IConfiguration configuration = CreateConfiguration();
+
+            AppSettings appSettings = new()
+            {
+                SteamAppDatabase = configuration["SteamAppDatabase"],
+                SteamWebApi = configuration["SteamWebApi"]
+            };
+
+            var optionsBuilder = new DbContextOptionsBuilder<SteamDbContext>()
+            .UseSqlServer(appSettings.SteamAppDatabase);
+
+
+            using (var dbContext = new SteamDbContext(optionsBuilder.Options, appSettings))
+            {
+                dbContext.Add(md);
+                await dbContext.SaveChangesAsync();
+            }
+
+            //var appList = UpdateGetAppList();
+            //var appDataList = GetAllAppData(await appList);
         }
-        public static IHostBuilder CreateHostBuilder(string[] args) =>
-            Host.CreateDefaultBuilder(args)
-                .ConfigureServices((hostContext, services) =>
-                {
-                    // Configured services
-                    var configuration = new ConfigurationBuilder()
-                        .SetBasePath(Directory.GetCurrentDirectory())
-                        .AddJsonFile("appsettings.json")
-                        .Build();
-
-                    AppSettings appSettings = new AppSettings(
-                        configuration.GetValue<string>("SteamAppDatabase"),
-                        configuration.GetValue<string>("SteamWebApi")
-                    );
-
-                    services.AddSingleton(appSettings);
-                    services.AddDbContext<SteamDbContext>(options => options.UseSqlServer(appSettings.SteamAppDatabase));
-
-                    // Other service registrations here:
-
-                });
-
         #region App List Methods
         // Gets the steam app list, updates the output file and returns the new List<SteamApp> object
         public static async Task<List<SteamApp>> UpdateGetAppList()
@@ -192,6 +186,12 @@ namespace SteamAppDetailsToSQL
 
         }
         #endregion
+        // Suppresses missing IHost builder message in PowerSheel
+        public static IHostBuilder CreateHostBuilder(string[] args)
+        {
+            return Host.CreateDefaultBuilder(args);
+        }
+        // Use to retrieve all app data and return to a list
         public static async Task<List<MergedData>> GetAllAppData(List<SteamApp> appList)
         {
             List<MergedData> appDataList = new();
@@ -204,13 +204,16 @@ namespace SteamAppDetailsToSQL
             }
             return appDataList;
         }
+        #region MergedData to Dto Method
         public static DtoGame MapMergedDataToDto(MergedData mergedData, SteamDbContext steamDbContext)
         {
+            // Relative path shortcuts
+
+            var reviewsData = mergedData.ReviewObject.QuerySummary;
+            var detailsData = mergedData.DetailsObject.Data;
+
             // Game
             DtoGame dtoGame = new();
-            // Relative path shortcuts
-            var detailsData = mergedData.DetailsObject.Data;
-            var reviewsData = mergedData.ReviewObject.QuerySummary;
             dtoGame.SteamAppId = detailsData.SteamAppId;
             dtoGame.Type = detailsData.Type;
             dtoGame.Name = detailsData.Name;
@@ -433,20 +436,53 @@ namespace SteamAppDetailsToSQL
             }
             return dtoGame;
         }
+        #endregion
+
+        public static IConfiguration CreateConfiguration()
+        {
+            return new ConfigurationBuilder()
+                    .SetBasePath(Directory.GetCurrentDirectory())
+                    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                    .Build();
+        }
     }
+
     #region App settings
     public class AppSettings
     {
         public string SteamAppDatabase { get; set; }
         public string SteamWebApi { get; set; }
+        public AppSettings()
+        {
+
+        }
         // Overloaded constructor
         public AppSettings(string steamAppDatabase, string steamWebApi)
         {
             SteamAppDatabase = steamAppDatabase;
             SteamWebApi = steamWebApi;
         }
-        public AppSettings()
+
+    }
+    #endregion
+    #region Design Time DbContext Factory
+    public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<SteamDbContext>
+    {
+        public SteamDbContext CreateDbContext(string[] args)
         {
+            IConfiguration configuration = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json")
+                .Build();
+
+            var optionsBuilder = new DbContextOptionsBuilder<SteamDbContext>();
+            optionsBuilder.UseSqlServer(configuration.GetConnectionString("SteamAppDatabase"));
+
+            return new SteamDbContext(optionsBuilder.Options, new AppSettings
+            {
+                SteamAppDatabase = configuration["SteamAppDatabase"],
+                SteamWebApi = configuration["SteamWebApi"]
+            });
         }
     }
     #endregion
@@ -454,18 +490,21 @@ namespace SteamAppDetailsToSQL
     // Creates a DbContext class that represents the database
     public sealed class SteamDbContext : DbContext
     {
-        //private readonly AppSettings _appSettings;
+        private readonly AppSettings _appSettings;
 
-        //public SteamDbContext(DbContextOptions<SteamDbContext> options, AppSettings appSettings)
-        //    : base(options)
-        //{
-        //    _appSettings = appSettings;
-        //}
-        public SteamDbContext(DbContextOptions<SteamDbContext> options)
+        public SteamDbContext(DbContextOptions<SteamDbContext> options, AppSettings appSettings)
             : base(options)
         {
-
+            _appSettings = appSettings;
         }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            string connectionString = _appSettings.SteamAppDatabase;
+            optionsBuilder.UseSqlServer(connectionString);
+        }
+
+        // DbSets entities here
         public DbSet<DtoGame> Game { get; set; }
         public DbSet<DtoDeveloper> Developers { get; set; }
         public DbSet<DtoPublisher> Publishers { get; set; }
@@ -483,36 +522,30 @@ namespace SteamAppDetailsToSQL
         public DbSet<DtoLanguage> Language { get; set; }
         public DbSet<DtoGameLanguage> GameLanguages { get; set; }
 
-        // Code deprecated in favor of dependency injection method
-        //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        //{
-        //    // Set the connection string for your database
-        //    //string connectionString = Program.GetConnectionString("SteamAppDatabase");
-        //    string connectionString = _appSettings.SteamAppDatabase;
-        //    optionsBuilder.UseSqlServer(connectionString);
-        //}
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Game
             modelBuilder.Entity<DtoGame>()
                 .HasIndex(g => g.SteamAppId)
                 .IsUnique();
+
             // Game -> GameDev
             modelBuilder.Entity<DtoGame>()
                 .HasMany(g => g.GameDevelopers)
                 .WithOne(gd => gd.DtoGame)
                 .HasForeignKey(gd => gd.GameAppId);
+
             // Game -> GamePub
             modelBuilder.Entity<DtoGame>()
                 .HasMany(g => g.GamePublishers)
                 .WithOne(gp => gp.DtoGame)
                 .HasForeignKey(gp => gp.GameAppId);
+
             // Game -> GameLang
             modelBuilder.Entity<DtoGame>()
                 .HasMany(g => g.GameLanguages)
                 .WithOne(gl => gl.DtoGame)
                 .HasForeignKey(gl => gl.GameAppId);
-
             // Game Dev
             modelBuilder.Entity<DtoGameDeveloper>()
                 .HasKey(gd => new { gd.GameAppId, gd.DeveloperId });
@@ -608,8 +641,6 @@ namespace SteamAppDetailsToSQL
                 .HasMany(l => l.GameLanguages)
                 .WithOne(g => g.DtoLanguage)
                 .HasForeignKey(l => l.LanguageId);
-
-
         }
     }
     #endregion
@@ -619,27 +650,27 @@ namespace SteamAppDetailsToSQL
     {
         [Key]
         public int SteamAppId { get; set; }
-        public string Type { get; set; }
-        public string Name { get; set; }
+        public string? Type { get; set; }
+        public string? Name { get; set; }
         public int RequiredAge { get; set; }
         public bool IsFree { get; set; }
-        public string DetailedDescription { get; set; }
-        public string AboutTheGame { get; set; }
-        public string ShortDescription { get; set; }
-        public string HeaderImage { get; set; }
-        public string ReleaseDate { get; set; }
-        public virtual DtoRecommendations Recommendations { get; set; }
-        public virtual DtoPriceOverview PriceOverview { get; set; }
-        public virtual DtoMetacritic Metacritic { get; set; }
-        public virtual DtoSupportInfo SupportInfo { get; set; }
-        public virtual DtoBackground Backgrounds { get; set; }
-        public virtual DtoPlatform Platforms { get; set; }
-        public virtual ICollection<DtoRequirements> Requirements { get; set; }
-        public virtual ICollection<DtoGameDeveloper> GameDevelopers { get; set; }
-        public virtual ICollection<DtoGamePublisher> GamePublishers { get; set; }
-        public virtual ICollection<DtoScreenshot> Screenshots { get; set; }
-        public virtual ICollection<DtoMovie> Movies { get; set; }
-        public virtual ICollection<DtoGameLanguage> GameLanguages { get; set; }
+        public string? DetailedDescription { get; set; }
+        public string? AboutTheGame { get; set; }
+        public string? ShortDescription { get; set; }
+        public string? HeaderImage { get; set; }
+        public string? ReleaseDate { get; set; } = "Coming soon";
+        public virtual DtoRecommendations Recommendations { get; set; } = new DtoRecommendations();
+        public virtual DtoPriceOverview PriceOverview { get; set; } = new DtoPriceOverview();
+        public virtual DtoMetacritic Metacritic { get; set; } = new DtoMetacritic();
+        public virtual DtoSupportInfo SupportInfo { get; set; } = new DtoSupportInfo();
+        public virtual DtoBackground Backgrounds { get; set; } = new DtoBackground();
+        public virtual DtoPlatform Platforms { get; set; } = new DtoPlatform();
+        public virtual ICollection<DtoRequirements> Requirements { get; set; } = new List<DtoRequirements>();
+        public virtual ICollection<DtoGameDeveloper> GameDevelopers { get; set; } = new List<DtoGameDeveloper>();
+        public virtual ICollection<DtoGamePublisher> GamePublishers { get; set; } = new List<DtoGamePublisher>();
+        public virtual ICollection<DtoScreenshot> Screenshots { get; set; } = new List<DtoScreenshot>();
+        public virtual ICollection<DtoMovie> Movies { get; set; } = new List<DtoMovie>();
+        public virtual ICollection<DtoGameLanguage> GameLanguages { get; set; } = new List<DtoGameLanguage>();
     }
     // One developer has multiple games - same dev different game
     public class DtoDeveloper
@@ -647,7 +678,6 @@ namespace SteamAppDetailsToSQL
         [Key]
         public int Id { get; set; }
         public string Name { get; set; }
-
         public virtual ICollection<DtoGameDeveloper> GameDevelopers { get; set; }
     }
     public class DtoPlatform
@@ -667,7 +697,6 @@ namespace SteamAppDetailsToSQL
         [Key]
         public int Id { get; set; }
         public string Name { get; set; }
-
         public virtual ICollection<DtoGamePublisher> GamePublishers { get; set; }
     }
     // One GameDeveloper has one game and one developer
@@ -675,10 +704,8 @@ namespace SteamAppDetailsToSQL
     {
         [Key, Column(Order = 0)]
         public int GameAppId { get; set; }
-
         [Key, Column(Order = 1)]
         public int DeveloperId { get; set; }
-
         public virtual DtoGame DtoGame { get; set; }
         public virtual DtoDeveloper DtoDeveloper { get; set; }
     }
@@ -687,10 +714,8 @@ namespace SteamAppDetailsToSQL
     {
         [Key, Column(Order = 0)]
         public int GameAppId { get; set; }
-
         [Key, Column(Order = 1)]
         public int PublisherId { get; set; }
-
         public virtual DtoGame DtoGame { get; set; }
         public virtual DtoPublisher DtoPublisher { get; set; }
     }
@@ -700,9 +725,8 @@ namespace SteamAppDetailsToSQL
         [Key]
         public int Id { get; set; }
         public int GameAppId { get; set; }
-        public string Platform { get; set; }
-        public string Minimum { get; set; }
-
+        public string? Platform { get; set; }
+        public string? Minimum { get; set; }
         public virtual DtoGame DtoGame { get; set; }
     }
     // PriceOverview has one Game and Game has one PriceOverview
@@ -711,10 +735,9 @@ namespace SteamAppDetailsToSQL
         [Key]
         public int Id { get; set; }
         public int GameAppId { get; set; }
-        public string Currency { get; set; }
-        public int? DiscountPercent { get; set; }
-        public string FinalFormatted { get; set; }
-
+        public string? Currency { get; set; }
+        public int DiscountPercent { get; set; }
+        public string? FinalFormatted { get; set; }
         public virtual DtoGame DtoGame { get; set; }
     }
     // Metacritic has one Game and Game has one Metacritic
@@ -724,8 +747,7 @@ namespace SteamAppDetailsToSQL
         public int Id { get; set; }
         public int GameAppId { get; set; }
         public int? Score { get; set; }
-        public string Url { get; set; }
-
+        public string? Url { get; set; }
         public virtual DtoGame DtoGame { get; set; }
     }
     // Screenshot has one game - game has multiple screenshots
@@ -734,8 +756,8 @@ namespace SteamAppDetailsToSQL
     {
         public int Id { get; set; }
         public int GameAppId { get; set; }
-        public string PathThumbnail { get; set; }
-        public string PathFull { get; set; }
+        public string? PathThumbnail { get; set; }
+        public string? PathFull { get; set; }
         [ForeignKey("GameAppId")]
         public DtoGame DtoGame { get; set; }
     }
@@ -746,22 +768,22 @@ namespace SteamAppDetailsToSQL
         public int Id { get; set; }
         public int GameAppId { get; set; }
         //public int MovieId { get; set; }
-        public string Name { get; set; }
-        public string Thumbnail { get; set; }
-        public string Webm480 { get; set; }
-        public string WebmMax { get; set; }
-        public string Mp4480 { get; set; }
-        public string Mp4Max { get; set; }
+        public string? Name { get; set; }
+        public string? Thumbnail { get; set; }
+        public string? Webm480 { get; set; }
+        public string? WebmMax { get; set; }
+        public string? Mp4480 { get; set; }
+        public string? Mp4Max { get; set; }
         public bool Highlight { get; set; }
         [ForeignKey("GameAppId")]
-        public DtoGame DtoGame { get; set; }
+        public DtoGame? DtoGame { get; set; }
     }
     //  Language has many game languages (same language different game) - game has many game languages (same game different languages)
     public class DtoLanguage
     {
         [Key]
         public int Id { get; set; }
-        public string Language { get; set; }
+        public string? Language { get; set; }
         public virtual ICollection<DtoGameLanguage> GameLanguages { get; set; }
     }
     // Each game languages has one game and one language
@@ -787,7 +809,7 @@ namespace SteamAppDetailsToSQL
         [Key]
         public int Id { get; set; }
         public int GameAppId { get; set; }
-        public string ReviewScoreDesc { get; set; }
+        public string ReviewScoreDesc { get; set; } = "No user reviews";
         public int TotalReviews { get; set; }
         public int TotalPositive { get; set; }
         public int TotalNegative { get; set; }
@@ -801,8 +823,8 @@ namespace SteamAppDetailsToSQL
         [Key]
         public int Id { get; set; }
         public int GameAppId { get; set; }
-        public string Url { get; set; }
-        public string Email { get; set; }
+        public string? Url { get; set; }
+        public string? Email { get; set; }
 
         [ForeignKey(nameof(GameAppId))]
         public DtoGame DtoGame { get; set; }
@@ -813,8 +835,8 @@ namespace SteamAppDetailsToSQL
         [Key]
         public int Id { get; set; }
         public int GameAppId { get; set; }
-        public string Background { get; set; }
-        public string BackgroundRaw { get; set; }
+        public string? Background { get; set; }
+        public string? BackgroundRaw { get; set; }
 
         [ForeignKey(nameof(GameAppId))]
         public DtoGame DtoGame { get; set; }
@@ -843,14 +865,12 @@ namespace SteamAppDetailsToSQL
     [NotMapped]
     public class MergedData
     {
-        public DetailsRoot? DetailsObject { get; set; }
+        public DetailsRoot DetailsObject { get; set; }
 
-        public ReviewRoot? ReviewObject { get; set; }
-
-        public MergedData() { }
+        public ReviewRoot ReviewObject { get; set; }
+        //public MergedData() { }
         public MergedData(DetailsRoot dR, ReviewRoot rR)
         {
-
             DetailsObject = dR;
             ReviewObject = rR;
         }
@@ -864,12 +884,12 @@ namespace SteamAppDetailsToSQL
         public int Success { get; set; }
 
         [JsonProperty("query_summary")]
-        public QuerySummary? QuerySummary { get; set; }
+        public QuerySummary QuerySummary { get; set; }
     }
     public class QuerySummary
     {
         [JsonProperty("review_score_desc")]
-        public string ReviewScoreDesc { get; set; } = "No user reivew";
+        public string ReviewScoreDesc { get; set; } = "No user reviews";
 
         [JsonProperty("total_positive")]
         public int TotalPositive { get; set; }
@@ -889,7 +909,7 @@ namespace SteamAppDetailsToSQL
         public bool Success { get; set; }
 
         [JsonProperty("data")]
-        public Data? Data { get; set; }
+        public Data Data { get; set; }
     }
 
     public class Data
@@ -897,16 +917,16 @@ namespace SteamAppDetailsToSQL
         [JsonProperty("steam_appid")]
         public int SteamAppId { get; set; }
         [JsonProperty("type")]
-        public string Type { get; set; } = "Not given";
+        public string? Type { get; set; }
 
         [JsonProperty("name")]
-        public string Name { get; set; } = "Not given";
+        public string? Name { get; set; }
 
         [JsonProperty("required_age")]
         public int RequiredAge { get; set; }
 
         [JsonProperty("is_free")]
-        public bool IsFree { get; set; } = false;
+        public bool IsFree { get; set; }
 
         [JsonProperty("detailed_description")]
         public string? DetailedDescription { get; set; }
@@ -936,56 +956,56 @@ namespace SteamAppDetailsToSQL
         public LinuxRequirements? LinuxRequirements { get; set; }
 
         [JsonProperty("developers")]
-        public List<string>? Developers { get; set; }
+        public List<string> Developers { get; set; } = new List<string>();
 
         [JsonProperty("publishers")]
-        public List<string>? Publishers { get; set; }
+        public List<string> Publishers { get; set; } = new List<string>();
 
         [JsonProperty("price_overview")]
-        public PriceOverview? PriceOverview { get; set; }
+        public PriceOverview? PriceOverview { get; set; } = new PriceOverview();
 
         [JsonProperty("platforms")]
-        public Platforms? Platforms { get; set; }
+        public Platforms Platforms { get; set; } = new Platforms();
 
         [JsonProperty("metacritic")]
-        public Metacritic? Metacritic { get; set; }
+        public Metacritic? Metacritic { get; set; } = new Metacritic();
 
         [JsonProperty("screenshots")]
-        public List<Screenshot>? Screenshots { get; set; }
+        public List<Screenshot> Screenshots { get; set; } = new List<Screenshot>();
 
         [JsonProperty("movies")]
-        public List<Movie>? Movies { get; set; }
+        public List<Movie> Movies { get; set; } = new List<Movie>();
 
         [JsonProperty("recommendations")]
-        public Recommendations? Recommendations { get; set; }
+        public Recommendations Recommendations { get; set; } = new Recommendations();
 
         [JsonProperty("release_date")]
-        public ReleaseDate ReleaseDate { get; set; }
+        public ReleaseDate ReleaseDate { get; set; } = new ReleaseDate();
 
         [JsonProperty("support_info")]
-        public SupportInfo SupportInfo { get; set; }
+        public SupportInfo SupportInfo { get; set; } = new SupportInfo();
 
         [JsonProperty("background")]
-        public string Background { get; set; }
+        public string? Background { get; set; }
 
         [JsonProperty("background_raw")]
-        public string BackgroundRaw { get; set; }
+        public string? BackgroundRaw { get; set; }
     }
     public class PcRequirements
     {
         [JsonProperty("minimum")]
-        public string Minimum { get; set; }
+        public string? Minimum { get; set; }
     }
     public class LinuxRequirements
     {
         [JsonProperty("minimum")]
-        public string Minimum { get; set; }
+        public string? Minimum { get; set; }
     }
 
     public class MacRequirements
     {
         [JsonProperty("minimum")]
-        public string Minimum { get; set; }
+        public string? Minimum { get; set; }
     }
 
     public class Metacritic
@@ -994,7 +1014,7 @@ namespace SteamAppDetailsToSQL
         public int Score { get; set; }
 
         [JsonProperty("url")]
-        public string Url { get; set; }
+        public string? Url { get; set; }
     }
 
     public class Movie
@@ -1003,16 +1023,16 @@ namespace SteamAppDetailsToSQL
         public int Id { get; set; }
 
         [JsonProperty("name")]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         [JsonProperty("thumbnail")]
-        public string Thumbnail { get; set; }
+        public string? Thumbnail { get; set; }
 
         [JsonProperty("webm")]
-        public Webm Webm { get; set; }
+        public Webm? Webm { get; set; }
 
         [JsonProperty("mp4")]
-        public Mp4 Mp4 { get; set; }
+        public Mp4? Mp4 { get; set; }
 
         [JsonProperty("highlight")]
         public bool Highlight { get; set; }
