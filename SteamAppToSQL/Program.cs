@@ -1,33 +1,13 @@
 ﻿using CsvHelper;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Linq;
-using Newtonsoft.Json.Converters;
-using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.ComponentModel.DataAnnotations;
-using System.Formats.Asn1;
-using System.Net.Http.Json;
 using System.ComponentModel.DataAnnotations.Schema;
-using System;
-using System.Collections.Generic;
 using System.Globalization;
-//using SteamAppDatabase.Entities;
-//using SteamAppDatabase.Models;
-using System.IO;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Configuration.Json;
-using Microsoft.Extensions.Options;
-using System.Collections;
-using Microsoft.Extensions.Hosting;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.EntityFrameworkCore.Design;
 /* 
 Developer: Kyle Watson
 Date: 18/04/2023
@@ -68,7 +48,8 @@ namespace SteamAppDetailsToSQL
 
             using (var dbContext = new SteamDbContext(optionsBuilder.Options, appSettings))
             {
-                dbContext.Add(md);
+                var dto = MapMergedDataToDto(md, dbContext);
+                dbContext.Add(dto);
                 await dbContext.SaveChangesAsync();
             }
 
@@ -649,6 +630,7 @@ namespace SteamAppDetailsToSQL
     public class DtoGame
     {
         [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.None)]
         public int SteamAppId { get; set; }
         public string? Type { get; set; }
         public string? Name { get; set; }
