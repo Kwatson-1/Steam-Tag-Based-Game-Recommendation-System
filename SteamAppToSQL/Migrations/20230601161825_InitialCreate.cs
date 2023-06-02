@@ -16,7 +16,7 @@ namespace SteamAppToSQL.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                    Name = table.Column<string>(type: "nvarchar(450)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -27,20 +27,16 @@ namespace SteamAppToSQL.Migrations
                 name: "Game",
                 columns: table => new
                 {
-                    SteamAppId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Type = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    SteamAppId = table.Column<int>(type: "int", nullable: false),
+                    Type = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Name = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     RequiredAge = table.Column<int>(type: "int", nullable: false),
                     IsFree = table.Column<bool>(type: "bit", nullable: false),
-                    DetailedDescription = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    AboutTheGame = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    ShortDescription = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    HeaderImage = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    ReleaseDate = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Windows = table.Column<bool>(type: "bit", nullable: false),
-                    Mac = table.Column<bool>(type: "bit", nullable: false),
-                    Linux = table.Column<bool>(type: "bit", nullable: false)
+                    DetailedDescription = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    AboutTheGame = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ShortDescription = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    HeaderImage = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ReleaseDate = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -53,7 +49,7 @@ namespace SteamAppToSQL.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    Language = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                    Language = table.Column<string>(type: "nvarchar(450)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -66,7 +62,7 @@ namespace SteamAppToSQL.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                    Name = table.Column<string>(type: "nvarchar(450)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -74,20 +70,20 @@ namespace SteamAppToSQL.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Background",
+                name: "Backgrounds",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     GameAppId = table.Column<int>(type: "int", nullable: false),
-                    Background = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    BackgroundRaw = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                    Background = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    BackgroundRaw = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Background", x => x.Id);
+                    table.PrimaryKey("PK_Backgrounds", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Background_Game_GameAppId",
+                        name: "FK_Backgrounds_Game_GameAppId",
                         column: x => x.GameAppId,
                         principalTable: "Game",
                         principalColumn: "SteamAppId",
@@ -126,7 +122,7 @@ namespace SteamAppToSQL.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     GameAppId = table.Column<int>(type: "int", nullable: false),
                     Score = table.Column<int>(type: "int", nullable: true),
-                    Url = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                    Url = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -146,13 +142,12 @@ namespace SteamAppToSQL.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     GameAppId = table.Column<int>(type: "int", nullable: false),
-                    MovieId = table.Column<int>(type: "int", nullable: false),
-                    Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Thumbnail = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Webm480 = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    WebmMax = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Mp4480 = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Mp4Max = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Thumbnail = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Webm480 = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    WebmMax = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Mp4480 = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Mp4Max = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Highlight = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
@@ -167,15 +162,37 @@ namespace SteamAppToSQL.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Platforms",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    GameAppId = table.Column<int>(type: "int", nullable: false),
+                    Windows = table.Column<bool>(type: "bit", nullable: false),
+                    Mac = table.Column<bool>(type: "bit", nullable: false),
+                    Linux = table.Column<bool>(type: "bit", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Platforms", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Platforms_Game_GameAppId",
+                        column: x => x.GameAppId,
+                        principalTable: "Game",
+                        principalColumn: "SteamAppId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "PriceOverview",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     GameAppId = table.Column<int>(type: "int", nullable: false),
-                    Currency = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    DiscountPercent = table.Column<int>(type: "int", nullable: true),
-                    FinalFormatted = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                    Currency = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    DiscountPercent = table.Column<int>(type: "int", nullable: false),
+                    FinalFormatted = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -218,8 +235,8 @@ namespace SteamAppToSQL.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     GameAppId = table.Column<int>(type: "int", nullable: false),
-                    Platform = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Minimum = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                    Platform = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Minimum = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -239,8 +256,8 @@ namespace SteamAppToSQL.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     GameAppId = table.Column<int>(type: "int", nullable: false),
-                    PathThumbnail = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    PathFull = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                    PathThumbnail = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    PathFull = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -260,8 +277,8 @@ namespace SteamAppToSQL.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     GameAppId = table.Column<int>(type: "int", nullable: false),
-                    Url = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Email = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                    Url = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Email = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -323,9 +340,21 @@ namespace SteamAppToSQL.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Background_GameAppId",
-                table: "Background",
+                name: "IX_Backgrounds_GameAppId",
+                table: "Backgrounds",
                 column: "GameAppId",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Developers_Name",
+                table: "Developers",
+                column: "Name",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Game_SteamAppId",
+                table: "Game",
+                column: "SteamAppId",
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -344,6 +373,13 @@ namespace SteamAppToSQL.Migrations
                 column: "PublisherId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Language_Language",
+                table: "Language",
+                column: "Language",
+                unique: true,
+                filter: "[Language] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Metacritic_GameAppId",
                 table: "Metacritic",
                 column: "GameAppId",
@@ -355,9 +391,21 @@ namespace SteamAppToSQL.Migrations
                 column: "GameAppId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Platforms_GameAppId",
+                table: "Platforms",
+                column: "GameAppId",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_PriceOverview_GameAppId",
                 table: "PriceOverview",
                 column: "GameAppId",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Publishers_Name",
+                table: "Publishers",
+                column: "Name",
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -387,7 +435,7 @@ namespace SteamAppToSQL.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "Background");
+                name: "Backgrounds");
 
             migrationBuilder.DropTable(
                 name: "GameDevelopers");
@@ -403,6 +451,9 @@ namespace SteamAppToSQL.Migrations
 
             migrationBuilder.DropTable(
                 name: "Movie");
+
+            migrationBuilder.DropTable(
+                name: "Platforms");
 
             migrationBuilder.DropTable(
                 name: "PriceOverview");

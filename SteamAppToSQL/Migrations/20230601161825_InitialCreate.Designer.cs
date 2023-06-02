@@ -12,8 +12,8 @@ using SteamAppDetailsToSQL;
 namespace SteamAppToSQL.Migrations
 {
     [DbContext(typeof(SteamDbContext))]
-    [Migration("20230519152014_IncludePlatformTable")]
-    partial class IncludePlatformTable
+    [Migration("20230601161825_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -25,7 +25,7 @@ namespace SteamAppToSQL.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmBackground", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoBackground", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -34,11 +34,9 @@ namespace SteamAppToSQL.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Background")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("BackgroundRaw")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("GameAppId")
@@ -52,7 +50,7 @@ namespace SteamAppToSQL.Migrations
                     b.ToTable("Backgrounds");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmDeveloper", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoDeveloper", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -62,53 +60,46 @@ namespace SteamAppToSQL.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
 
                     b.ToTable("Developers");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmGame", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoGame", b =>
                 {
                     b.Property<int>("SteamAppId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SteamAppId"));
-
                     b.Property<string>("AboutTheGame")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("DetailedDescription")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("HeaderImage")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsFree")
                         .HasColumnType("bit");
 
                     b.Property<string>("Name")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ReleaseDate")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("RequiredAge")
                         .HasColumnType("int");
 
                     b.Property<string>("ShortDescription")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Type")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("SteamAppId");
@@ -119,7 +110,7 @@ namespace SteamAppToSQL.Migrations
                     b.ToTable("Game");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmGameDeveloper", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoGameDeveloper", b =>
                 {
                     b.Property<int>("GameAppId")
                         .HasColumnType("int")
@@ -136,7 +127,7 @@ namespace SteamAppToSQL.Migrations
                     b.ToTable("GameDevelopers");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmGameLanguage", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoGameLanguage", b =>
                 {
                     b.Property<int>("GameAppId")
                         .HasColumnType("int")
@@ -153,7 +144,7 @@ namespace SteamAppToSQL.Migrations
                     b.ToTable("GameLanguages");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmGamePublisher", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoGamePublisher", b =>
                 {
                     b.Property<int>("GameAppId")
                         .HasColumnType("int")
@@ -170,7 +161,7 @@ namespace SteamAppToSQL.Migrations
                     b.ToTable("GamePublishers");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmLanguage", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoLanguage", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -179,15 +170,18 @@ namespace SteamAppToSQL.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Language")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Language")
+                        .IsUnique()
+                        .HasFilter("[Language] IS NOT NULL");
 
                     b.ToTable("Language");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmMetacritic", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoMetacritic", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -202,7 +196,6 @@ namespace SteamAppToSQL.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Url")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
@@ -213,7 +206,7 @@ namespace SteamAppToSQL.Migrations
                     b.ToTable("Metacritic");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmMovie", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoMovie", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -227,31 +220,22 @@ namespace SteamAppToSQL.Migrations
                     b.Property<bool>("Highlight")
                         .HasColumnType("bit");
 
-                    b.Property<int>("MovieId")
-                        .HasColumnType("int");
-
                     b.Property<string>("Mp4480")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Mp4Max")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Name")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Thumbnail")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Webm480")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("WebmMax")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
@@ -261,7 +245,7 @@ namespace SteamAppToSQL.Migrations
                     b.ToTable("Movie");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmPlatform", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoPlatform", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -289,7 +273,7 @@ namespace SteamAppToSQL.Migrations
                     b.ToTable("Platforms");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmPriceOverview", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoPriceOverview", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -298,14 +282,12 @@ namespace SteamAppToSQL.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Currency")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("DiscountPercent")
+                    b.Property<int>("DiscountPercent")
                         .HasColumnType("int");
 
                     b.Property<string>("FinalFormatted")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("GameAppId")
@@ -319,7 +301,7 @@ namespace SteamAppToSQL.Migrations
                     b.ToTable("PriceOverview");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmPublisher", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoPublisher", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -329,14 +311,17 @@ namespace SteamAppToSQL.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
 
                     b.ToTable("Publishers");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmRecommendations", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoRecommendations", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -368,7 +353,7 @@ namespace SteamAppToSQL.Migrations
                     b.ToTable("Recommendations");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmRequirements", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoRequirements", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -380,11 +365,9 @@ namespace SteamAppToSQL.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Minimum")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Platform")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
@@ -394,7 +377,7 @@ namespace SteamAppToSQL.Migrations
                     b.ToTable("Requirements");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmScreenshot", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoScreenshot", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -406,11 +389,9 @@ namespace SteamAppToSQL.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("PathFull")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PathThumbnail")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
@@ -420,7 +401,7 @@ namespace SteamAppToSQL.Migrations
                     b.ToTable("Screenshot");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmSupportInfo", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoSupportInfo", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -429,14 +410,12 @@ namespace SteamAppToSQL.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Email")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("GameAppId")
                         .HasColumnType("int");
 
                     b.Property<string>("Url")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
@@ -447,170 +426,170 @@ namespace SteamAppToSQL.Migrations
                     b.ToTable("SupportInfo");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmBackground", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoBackground", b =>
                 {
-                    b.HasOne("SteamAppDetailsToSQL.OrmGame", "OrmGame")
-                        .WithOne("Background")
-                        .HasForeignKey("SteamAppDetailsToSQL.OrmBackground", "GameAppId")
+                    b.HasOne("SteamAppDetailsToSQL.DtoGame", "DtoGame")
+                        .WithOne("Backgrounds")
+                        .HasForeignKey("SteamAppDetailsToSQL.DtoBackground", "GameAppId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("OrmGame");
+                    b.Navigation("DtoGame");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmGameDeveloper", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoGameDeveloper", b =>
                 {
-                    b.HasOne("SteamAppDetailsToSQL.OrmDeveloper", "OrmDeveloper")
+                    b.HasOne("SteamAppDetailsToSQL.DtoDeveloper", "DtoDeveloper")
                         .WithMany("GameDevelopers")
                         .HasForeignKey("DeveloperId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("SteamAppDetailsToSQL.OrmGame", "OrmGame")
+                    b.HasOne("SteamAppDetailsToSQL.DtoGame", "DtoGame")
                         .WithMany("GameDevelopers")
                         .HasForeignKey("GameAppId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("OrmDeveloper");
+                    b.Navigation("DtoDeveloper");
 
-                    b.Navigation("OrmGame");
+                    b.Navigation("DtoGame");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmGameLanguage", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoGameLanguage", b =>
                 {
-                    b.HasOne("SteamAppDetailsToSQL.OrmGame", "OrmGame")
+                    b.HasOne("SteamAppDetailsToSQL.DtoGame", "DtoGame")
                         .WithMany("GameLanguages")
                         .HasForeignKey("GameAppId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("SteamAppDetailsToSQL.OrmLanguage", "OrmLanguage")
+                    b.HasOne("SteamAppDetailsToSQL.DtoLanguage", "DtoLanguage")
                         .WithMany("GameLanguages")
                         .HasForeignKey("LanguageId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("OrmGame");
+                    b.Navigation("DtoGame");
 
-                    b.Navigation("OrmLanguage");
+                    b.Navigation("DtoLanguage");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmGamePublisher", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoGamePublisher", b =>
                 {
-                    b.HasOne("SteamAppDetailsToSQL.OrmGame", "OrmGame")
+                    b.HasOne("SteamAppDetailsToSQL.DtoGame", "DtoGame")
                         .WithMany("GamePublishers")
                         .HasForeignKey("GameAppId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("SteamAppDetailsToSQL.OrmPublisher", "OrmPublisher")
+                    b.HasOne("SteamAppDetailsToSQL.DtoPublisher", "DtoPublisher")
                         .WithMany("GamePublishers")
                         .HasForeignKey("PublisherId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("OrmGame");
+                    b.Navigation("DtoGame");
 
-                    b.Navigation("OrmPublisher");
+                    b.Navigation("DtoPublisher");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmMetacritic", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoMetacritic", b =>
                 {
-                    b.HasOne("SteamAppDetailsToSQL.OrmGame", "OrmGame")
+                    b.HasOne("SteamAppDetailsToSQL.DtoGame", "DtoGame")
                         .WithOne("Metacritic")
-                        .HasForeignKey("SteamAppDetailsToSQL.OrmMetacritic", "GameAppId")
+                        .HasForeignKey("SteamAppDetailsToSQL.DtoMetacritic", "GameAppId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("OrmGame");
+                    b.Navigation("DtoGame");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmMovie", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoMovie", b =>
                 {
-                    b.HasOne("SteamAppDetailsToSQL.OrmGame", "OrmGame")
+                    b.HasOne("SteamAppDetailsToSQL.DtoGame", "DtoGame")
                         .WithMany("Movies")
                         .HasForeignKey("GameAppId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("OrmGame");
+                    b.Navigation("DtoGame");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmPlatform", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoPlatform", b =>
                 {
-                    b.HasOne("SteamAppDetailsToSQL.OrmGame", "OrmGame")
+                    b.HasOne("SteamAppDetailsToSQL.DtoGame", "DtoGame")
                         .WithOne("Platforms")
-                        .HasForeignKey("SteamAppDetailsToSQL.OrmPlatform", "GameAppId")
+                        .HasForeignKey("SteamAppDetailsToSQL.DtoPlatform", "GameAppId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("OrmGame");
+                    b.Navigation("DtoGame");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmPriceOverview", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoPriceOverview", b =>
                 {
-                    b.HasOne("SteamAppDetailsToSQL.OrmGame", "OrmGame")
+                    b.HasOne("SteamAppDetailsToSQL.DtoGame", "DtoGame")
                         .WithOne("PriceOverview")
-                        .HasForeignKey("SteamAppDetailsToSQL.OrmPriceOverview", "GameAppId")
+                        .HasForeignKey("SteamAppDetailsToSQL.DtoPriceOverview", "GameAppId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("OrmGame");
+                    b.Navigation("DtoGame");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmRecommendations", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoRecommendations", b =>
                 {
-                    b.HasOne("SteamAppDetailsToSQL.OrmGame", "OrmGame")
+                    b.HasOne("SteamAppDetailsToSQL.DtoGame", "DtoGame")
                         .WithOne("Recommendations")
-                        .HasForeignKey("SteamAppDetailsToSQL.OrmRecommendations", "GameAppId")
+                        .HasForeignKey("SteamAppDetailsToSQL.DtoRecommendations", "GameAppId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("OrmGame");
+                    b.Navigation("DtoGame");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmRequirements", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoRequirements", b =>
                 {
-                    b.HasOne("SteamAppDetailsToSQL.OrmGame", "OrmGame")
+                    b.HasOne("SteamAppDetailsToSQL.DtoGame", "DtoGame")
                         .WithMany("Requirements")
                         .HasForeignKey("GameAppId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("OrmGame");
+                    b.Navigation("DtoGame");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmScreenshot", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoScreenshot", b =>
                 {
-                    b.HasOne("SteamAppDetailsToSQL.OrmGame", "OrmGame")
+                    b.HasOne("SteamAppDetailsToSQL.DtoGame", "DtoGame")
                         .WithMany("Screenshots")
                         .HasForeignKey("GameAppId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("OrmGame");
+                    b.Navigation("DtoGame");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmSupportInfo", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoSupportInfo", b =>
                 {
-                    b.HasOne("SteamAppDetailsToSQL.OrmGame", "OrmGame")
+                    b.HasOne("SteamAppDetailsToSQL.DtoGame", "DtoGame")
                         .WithOne("SupportInfo")
-                        .HasForeignKey("SteamAppDetailsToSQL.OrmSupportInfo", "GameAppId")
+                        .HasForeignKey("SteamAppDetailsToSQL.DtoSupportInfo", "GameAppId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("OrmGame");
+                    b.Navigation("DtoGame");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmDeveloper", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoDeveloper", b =>
                 {
                     b.Navigation("GameDevelopers");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmGame", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoGame", b =>
                 {
-                    b.Navigation("Background")
+                    b.Navigation("Backgrounds")
                         .IsRequired();
 
                     b.Navigation("GameDevelopers");
@@ -641,12 +620,12 @@ namespace SteamAppToSQL.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmLanguage", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoLanguage", b =>
                 {
                     b.Navigation("GameLanguages");
                 });
 
-            modelBuilder.Entity("SteamAppDetailsToSQL.OrmPublisher", b =>
+            modelBuilder.Entity("SteamAppDetailsToSQL.DtoPublisher", b =>
                 {
                     b.Navigation("GamePublishers");
                 });

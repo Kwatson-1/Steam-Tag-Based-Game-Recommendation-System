@@ -8,6 +8,7 @@ using Newtonsoft.Json.Linq;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Globalization;
+using static Microsoft.AspNetCore.Hosting.Internal.HostingApplication;
 /* 
 Developer: Kyle Watson
 Date: 18/04/2023
@@ -48,8 +49,12 @@ namespace SteamAppDetailsToSQL
 
             using (var dbContext = new SteamDbContext(optionsBuilder.Options, appSettings))
             {
+                // Perform your insert operation
                 var dto = MapMergedDataToDto(md, dbContext);
-                dbContext.Add(dto);
+                //dbContext.Add(dto);
+                //await dbContext.SaveChangesAsync();
+                //dbContext.
+                dbContext.Entry(dto).State = EntityState.Modified;
                 await dbContext.SaveChangesAsync();
             }
 
@@ -189,39 +194,51 @@ namespace SteamAppDetailsToSQL
         public static DtoGame MapMergedDataToDto(MergedData mergedData, SteamDbContext steamDbContext)
         {
             // Relative path shortcuts
-
             var reviewsData = mergedData.ReviewObject.QuerySummary;
             var detailsData = mergedData.DetailsObject.Data;
 
-            // Game
             DtoGame dtoGame = new();
-            dtoGame.SteamAppId = detailsData.SteamAppId;
-            dtoGame.Type = detailsData.Type;
-            dtoGame.Name = detailsData.Name;
-            dtoGame.RequiredAge = detailsData.RequiredAge;
-            dtoGame.IsFree = detailsData.IsFree;
-            dtoGame.DetailedDescription = detailsData.DetailedDescription;
-            dtoGame.AboutTheGame = detailsData.AboutTheGame;
-            dtoGame.ShortDescription = detailsData.ShortDescription;
-            dtoGame.HeaderImage = detailsData.HeaderImage;
-            dtoGame.ReleaseDate = detailsData.ReleaseDate.ToString();
+
+            // Game
+            if (detailsData != null)
+            {
+                dtoGame.SteamAppId = detailsData.SteamAppId;
+                dtoGame.Type = detailsData.Type;
+                dtoGame.Name = detailsData.Name;
+                dtoGame.RequiredAge = detailsData.RequiredAge;
+                dtoGame.IsFree = detailsData.IsFree;
+                dtoGame.DetailedDescription = detailsData.DetailedDescription;
+                dtoGame.AboutTheGame = detailsData.AboutTheGame;
+                dtoGame.ShortDescription = detailsData.ShortDescription;
+                dtoGame.HeaderImage = detailsData.HeaderImage;
+                dtoGame.ReleaseDate = detailsData.ReleaseDate.Date;
+            }
+
 
             // Platform
-            dtoGame.Platforms = new DtoPlatform
+            if(detailsData.Platforms != null)
             {
-                DtoGame = dtoGame,
-                Windows = detailsData.Platforms.Windows,
-                Mac = detailsData.Platforms.Mac,
-                Linux = detailsData.Platforms.Linux
-            };
+                dtoGame.Platforms = new DtoPlatform
+                {
+                    DtoGame = dtoGame,
+                    Windows = detailsData.Platforms.Windows,
+                    Mac = detailsData.Platforms.Mac,
+                    Linux = detailsData.Platforms.Linux
+                };
+            }
+
 
             // Support Info
-            dtoGame.SupportInfo = new DtoSupportInfo
+            if(detailsData.SupportInfo != null)
             {
-                DtoGame = dtoGame,
-                Url = detailsData.SupportInfo.Url,
-                Email = detailsData.SupportInfo.Email
-            };
+                dtoGame.SupportInfo = new DtoSupportInfo
+                {
+                    DtoGame = dtoGame,
+                    Url = detailsData.SupportInfo.Url,
+                    Email = detailsData.SupportInfo.Email
+                };
+            }
+
 
             // Price Overview
             if (detailsData.PriceOverview != null)
@@ -507,6 +524,10 @@ namespace SteamAppDetailsToSQL
         {
             // Game
             modelBuilder.Entity<DtoGame>()
+                .Property(g => g.SteamAppId)
+                .ValueGeneratedNever();
+
+            modelBuilder.Entity<DtoGame>()
                 .HasIndex(g => g.SteamAppId)
                 .IsUnique();
 
@@ -640,7 +661,7 @@ namespace SteamAppDetailsToSQL
         public string? AboutTheGame { get; set; }
         public string? ShortDescription { get; set; }
         public string? HeaderImage { get; set; }
-        public string? ReleaseDate { get; set; } = "Coming soon";
+        public string? ReleaseDate { get; set; } = "Coming Soon";
         public virtual DtoRecommendations Recommendations { get; set; } = new DtoRecommendations();
         public virtual DtoPriceOverview PriceOverview { get; set; } = new DtoPriceOverview();
         public virtual DtoMetacritic Metacritic { get; set; } = new DtoMetacritic();
