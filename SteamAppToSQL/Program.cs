@@ -8,7 +8,6 @@ using Newtonsoft.Json.Linq;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Globalization;
-using static Microsoft.AspNetCore.Hosting.Internal.HostingApplication;
 /* 
 Developer: Kyle Watson
 Date: 18/04/2023
@@ -27,16 +26,11 @@ namespace SteamAppDetailsToSQL
 {
     internal class Program
     {
+        static int skipCounter = 0;
+        static int addCounter = 0;
         public static async Task Main(string[] args)
         {
-            // Testing for individual app
-            int appId = 294100; // Replace with the desired app ID
-            var details = await FetchAppDetailsAsync(appId);
-            var reviews = await FetchAppReviewsAsync(appId);
-            MergedData md = new(details, reviews);
-
             IConfiguration configuration = CreateConfiguration();
-
             AppSettings appSettings = new()
             {
                 SteamAppDatabase = configuration["SteamAppDatabase"],
@@ -44,31 +38,44 @@ namespace SteamAppDetailsToSQL
             };
 
             var optionsBuilder = new DbContextOptionsBuilder<SteamDbContext>()
+
             .UseSqlServer(appSettings.SteamAppDatabase);
 
+            //Testing for individual app
+            int appId = 1844580; // Replace with the desired app ID
+            var details = await FetchAppDetailsAsync(appId);
+            var reviews = await FetchAppReviewsAsync(appId);
+            MergedData md = new(details, reviews);
 
-            using (var dbContext = new SteamDbContext(optionsBuilder.Options, appSettings))
-            {
-                // Perform your insert operation
-                var dto = MapMergedDataToDto(md, dbContext);
-                //dbContext.Add(dto);
-                //await dbContext.SaveChangesAsync();
-                //dbContext.
-                dbContext.Entry(dto).State = EntityState.Modified;
-                await dbContext.SaveChangesAsync();
-            }
+            //using (var dbContext = new SteamDbContext(optionsBuilder.Options, appSettings))
+            //{
+            //    // Perform your insert operation
+            //    var dto = MapMergedDataToDto(md, dbContext);
+            //    //dbContext.Add(dto);
+            //    //await dbContext.SaveChangesAsync();
+            //    //dbContext.
+            //    dbContext.Entry(dto).State = EntityState.Modified;
+            //    await dbContext.SaveChangesAsync();
+            //}
 
             //var appList = UpdateGetAppList();
-            //var appDataList = GetAllAppData(await appList);
+            //Console.WriteLine("App list successfully updated");
+
+            var appList = GetSteamAppsFromCsv();
+
+            var appDataList = GetAllAppData(appList);
+            WriteObjectsToFile(await appDataList, "AppDataList");
+
+            // List<MergedData> dataList = ReadObjectsFromFile("AppDataList");
         }
         #region App List Methods
         // Gets the steam app list, updates the output file and returns the new List<SteamApp> object
         public static async Task<List<SteamApp>> UpdateGetAppList()
         {
-            List<SteamApp> games = await GetSteamAppsAsync();
-            string outputPath = "steam_games.csv";
-            SaveSteamAppsToCsv(games, outputPath);
-            Console.WriteLine($"Saved {games.Count} games to {outputPath}");
+            List<SteamApp> apps = await GetSteamAppsAsync();
+            string outputPath = "steam_apps.csv";
+            SaveSteamAppsToCsv(apps, outputPath);
+            Console.WriteLine($"Saved {apps.Count} apps to {outputPath}");
             List<SteamApp> appList = GetSteamAppsFromCsv();
             return appList;
         }
@@ -98,7 +105,7 @@ namespace SteamAppDetailsToSQL
         public static List<SteamApp> GetSteamAppsFromCsv()
         {
             List<SteamApp> steamApps = new();
-            using (StreamReader sr = new("steam_games.csv"))
+            using (StreamReader sr = new("steam_apps.csv"))
             {
                 string? line;
                 while ((line = sr.ReadLine()) != null)
@@ -127,24 +134,37 @@ namespace SteamAppDetailsToSQL
         {
             string steamAppDetailsUrl = $"https://store.steampowered.com/api/appdetails?appids={appId}";
 
-
             using HttpClient httpClient = new();
 
             HttpResponseMessage detailsResponse = await httpClient.GetAsync(steamAppDetailsUrl);
             string jsonDetailsResponse = await detailsResponse.Content.ReadAsStringAsync();
-            string jsonDetailsResponseInner = ExtractInnerJson(jsonDetailsResponse);
 
+            string jsonDetailsResponseInner = ExtractInnerJson(jsonDetailsResponse); // If unable to ExtractInnerJson will return null
+
+            if (jsonDetailsResponseInner == null)
+            {
+                Console.WriteLine($"{appId} has no inner JSON to deserialize.");
+                skipCounter++;
+                return null;
+            }
             // Deserialize the JSON response
+            try
+            {
+                DetailsRoot myDeserializedDetailsClass = JsonConvert.DeserializeObject<DetailsRoot>(jsonDetailsResponseInner) ?? throw new Exception("There was no data to deserialize.");
 
-            DetailsRoot myDeserializedDetailsClass = JsonConvert.DeserializeObject<DetailsRoot>(jsonDetailsResponseInner) ?? throw new Exception("There was no data to deserialize.");
-
-            return myDeserializedDetailsClass;
+                return myDeserializedDetailsClass;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"{appId} encountered error: {ex.Message}");
+                skipCounter++;
+                return null;
+            }
         }
         // Returns a deserialized response from the Steam app reviews API
         public static async Task<ReviewRoot> FetchAppReviewsAsync(int appId)
         {
             string steamAppReviewUrl = $"https://store.steampowered.com/appreviews/{appId}?json=1";
-
 
             using HttpClient httpClient = new();
 
@@ -152,32 +172,48 @@ namespace SteamAppDetailsToSQL
             string jsonReviewResponse = await reviewResponse.Content.ReadAsStringAsync();
 
             // Deserialize the JSON response
-
-            ReviewRoot myDeserializedReviewClass = JsonConvert.DeserializeObject<ReviewRoot>(jsonReviewResponse) ?? throw new Exception("There was no data to deserialize.");
-
-            return myDeserializedReviewClass;
+            try
+            {
+                ReviewRoot myDeserializedReviewClass = JsonConvert.DeserializeObject<ReviewRoot>(jsonReviewResponse) ?? throw new Exception("There was no data to deserialize.");
+                return myDeserializedReviewClass;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"{appId} encountered error: {ex.Message}");
+                skipCounter++;
+                return null;
+            }
         }
         public static string ExtractInnerJson(string jsonString)
         {
-            JObject outerObject = JObject.Parse(jsonString);
-            JProperty? firstProperty = outerObject.Properties().FirstOrDefault();
-
-            // If the inner object is null, return
-            if (firstProperty == null)
+            try
             {
-                return string.Empty;
+                JObject outerObject = JObject.Parse(jsonString);
+                JProperty? firstProperty = outerObject.Properties().FirstOrDefault();
+
+                // If the inner object is null, return
+                if (firstProperty == null)
+                {
+                    return string.Empty;
+                }
+                JObject innerObject = (JObject)firstProperty.Value;
+                return innerObject.ToString();
             }
-            JObject innerObject = (JObject)firstProperty.Value;
-            return innerObject.ToString();
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                return null;
+            }
+
 
         }
         #endregion
-        // Suppresses missing IHost builder message in PowerSheel
+        // Suppresses missing IHost builder message in PowerShell
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
             return Host.CreateDefaultBuilder(args);
         }
-        // Use to retrieve all app data and return to a list
+        // Use to retrieve all app data and return a list of MergedData - takes a List<SteamApp>
         public static async Task<List<MergedData>> GetAllAppData(List<SteamApp> appList)
         {
             List<MergedData> appDataList = new();
@@ -185,10 +221,45 @@ namespace SteamAppDetailsToSQL
             {
                 var details = await FetchAppDetailsAsync(app.AppId);
                 var reviews = await FetchAppReviewsAsync(app.AppId);
-                MergedData md = new(details, reviews);
-                appDataList.Add(md);
+                if (details != null && reviews != null)
+                {
+                    MergedData md = new(details, reviews);
+                    appDataList.Add(md);
+                    addCounter++;
+                    Console.WriteLine($"{addCounter}. {app.AppId}: {app.Name} added.");
+                }
+                else
+                {
+                    continue;
+                }
             }
             return appDataList;
+        }
+        public static void WriteObjectsToFile(List<MergedData> objects, string fileName)
+        {
+            string currentDirectory = Directory.GetCurrentDirectory();
+            string filePath = Path.Combine(currentDirectory, fileName);
+
+            var jsonString = JsonConvert.SerializeObject(objects);
+            File.WriteAllText(filePath, jsonString);
+
+            Console.WriteLine($"Objects saved to {filePath}");
+        }
+
+        public static List<MergedData> ReadObjectsFromFile(string fileName)
+        {
+            string currentDirectory = Directory.GetCurrentDirectory();
+            string filePath = Path.Combine(currentDirectory, fileName);
+
+            if (!File.Exists(filePath))
+            {
+                throw new FileNotFoundException($"File not found: {filePath}");
+            }
+
+            var jsonString = File.ReadAllText(filePath);
+            var objects = JsonConvert.DeserializeObject<List<MergedData>>(jsonString);
+
+            return objects;
         }
         #region MergedData to Dto Method
         public static DtoGame MapMergedDataToDto(MergedData mergedData, SteamDbContext steamDbContext)
@@ -214,9 +285,8 @@ namespace SteamAppDetailsToSQL
                 dtoGame.ReleaseDate = detailsData.ReleaseDate.Date;
             }
 
-
             // Platform
-            if(detailsData.Platforms != null)
+            if (detailsData.Platforms != null)
             {
                 dtoGame.Platforms = new DtoPlatform
                 {
@@ -227,9 +297,8 @@ namespace SteamAppDetailsToSQL
                 };
             }
 
-
             // Support Info
-            if(detailsData.SupportInfo != null)
+            if (detailsData.SupportInfo != null)
             {
                 dtoGame.SupportInfo = new DtoSupportInfo
                 {
@@ -238,7 +307,6 @@ namespace SteamAppDetailsToSQL
                     Email = detailsData.SupportInfo.Email
                 };
             }
-
 
             // Price Overview
             if (detailsData.PriceOverview != null)
@@ -275,7 +343,6 @@ namespace SteamAppDetailsToSQL
                     Url = detailsData.Metacritic.Url
                 };
             }
-
 
             if (detailsData.Background != null && detailsData.BackgroundRaw != null)
             {
@@ -729,7 +796,7 @@ namespace SteamAppDetailsToSQL
         public int Id { get; set; }
         public int GameAppId { get; set; }
         public string? Platform { get; set; }
-        public string? Minimum { get; set; }
+        public string? Minimum { get; set; } = string.Empty;
         public virtual DtoGame DtoGame { get; set; }
     }
     // PriceOverview has one Game and Game has one PriceOverview
@@ -950,13 +1017,16 @@ namespace SteamAppDetailsToSQL
         public string? Website { get; set; }
 
         [JsonProperty("pc_requirements")]
-        public PcRequirements? PcRequirements { get; set; }
+        [JsonConverter(typeof(RequirementsConverter))]
+        public PcRequirements PcRequirements { get; set; }
 
         [JsonProperty("mac_requirements")]
-        public MacRequirements? MacRequirements { get; set; }
+        [JsonConverter(typeof(RequirementsConverter))]
+        public MacRequirements MacRequirements { get; set; }
 
         [JsonProperty("linux_requirements")]
-        public LinuxRequirements? LinuxRequirements { get; set; }
+        [JsonConverter(typeof(RequirementsConverter))]
+        public LinuxRequirements LinuxRequirements { get; set; }
 
         [JsonProperty("developers")]
         public List<string> Developers { get; set; } = new List<string>();
@@ -994,21 +1064,46 @@ namespace SteamAppDetailsToSQL
         [JsonProperty("background_raw")]
         public string? BackgroundRaw { get; set; }
     }
-    public class PcRequirements
+    /* 
+     * When a game does not support a platform rather than being stored as an empty object, it is stored as an empty array which
+     * confuses the deserializer due to an incompatible format. This method will return a null object when an empty array is encountered. 
+    */
+    public class RequirementsConverter : JsonConverter
     {
-        [JsonProperty("minimum")]
-        public string? Minimum { get; set; }
-    }
-    public class LinuxRequirements
-    {
-        [JsonProperty("minimum")]
-        public string? Minimum { get; set; }
+        public override bool CanConvert(Type objectType)
+        {
+            return typeof(Requirements).IsAssignableFrom(objectType);
+        }
+
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
+            // If the current token is an array start, return a new Requirements object.
+            if (reader.TokenType == JsonToken.StartArray)
+            {
+                reader.Skip(); // Skip the array.
+                return Activator.CreateInstance(objectType);
+            }
+
+            // If the current token is not an array, return the deserialized Requirements object.
+            var target = Activator.CreateInstance(objectType);
+            serializer.Populate(reader, target);
+            return target;
+        }
+
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        {
+            throw new NotImplementedException();
+        }
     }
 
-    public class MacRequirements
+    public class PcRequirements : Requirements { }
+    public class MacRequirements : Requirements { }
+    public class LinuxRequirements : Requirements { }
+    public class Requirements
     {
         [JsonProperty("minimum")]
-        public string? Minimum { get; set; }
+        public string Minimum { get; set; } = string.Empty;
+        public string Recommended { get; set; } = string.Empty;
     }
 
     public class Metacritic
