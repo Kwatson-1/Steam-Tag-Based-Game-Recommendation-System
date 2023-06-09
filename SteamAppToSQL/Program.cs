@@ -8,18 +8,23 @@ using Newtonsoft.Json.Linq;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Globalization;
+using System.Text.RegularExpressions;
+using MoreLinq;
+using System.Diagnostics.Metrics;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using System.Diagnostics;
 /* 
 Developer: Kyle Watson
 Date: 18/04/2023
 Project Tasks/Goals
-    /1. Program will fetch a list of all Steam apps which includes their name and ID from the Steam API using the GetSteamGamesAsync endpoint. 
-    /2. Stores the information in a CSV file for backup purposes and to minimize api calls.
-    /3. AppIDs are then pulled from the CSV file and stored in a List.
-    4. The List is then looped through to pull the AppID which is then used in a call to the Steam API using the GetGameDetailsAsync & GetAppReviewsAsync endpoint.
-    4a. Use Task.Delay to introduce a delay between each call to avoid potential issues or bans.
-    5. Game information is stored in a JSON file for backup purposes and to minimize api calls.
-    6. Call back the data fro the JSON file and parse the JSON response for each app and extract the necessary data.
-    7. Use a library to connect the SQL Server dataase and insert the extracted data.
+/1. Program will fetch a list of all Steam apps which includes their name and ID from the Steam API using the GetSteamGamesAsync endpoint. 
+/2. Stores the information in a CSV file for backup purposes and to minimize api calls.
+/3. AppIDs are then pulled from the CSV file and stored in a List.
+4. The List is then looped through to pull the AppID which is then used in a call to the Steam API using the GetGameDetailsAsync & GetAppReviewsAsync endpoint.
+4a. Use Task.Delay to introduce a delay between each call to avoid potential issues or bans.
+5. Game information is stored in a JSON file for backup purposes and to minimize api calls.
+6. Call back the data fro the JSON file and parse the JSON response for each app and extract the necessary data.
+7. Use a library to connect the SQL Server dataase and insert the extracted data.
 */
 
 namespace SteamAppDetailsToSQL
@@ -28,6 +33,7 @@ namespace SteamAppDetailsToSQL
     {
         static int skipCounter = 0;
         static int addCounter = 0;
+        static int bucketCounter = 0;
         public static async Task Main(string[] args)
         {
             IConfiguration configuration = CreateConfiguration();
@@ -42,33 +48,168 @@ namespace SteamAppDetailsToSQL
             .UseSqlServer(appSettings.SteamAppDatabase);
 
             //Testing for individual app
-            int appId = 1844580; // Replace with the desired app ID
-            var details = await FetchAppDetailsAsync(appId);
-            var reviews = await FetchAppReviewsAsync(appId);
-            MergedData md = new(details, reviews);
+            //int appId = 1844580; // Replace with the desired app ID
+            //var details = await FetchAppDetailsAsync(appId);
+            //var reviews = await FetchAppReviewsAsync(appId);
+            //MergedData md = new(details, reviews);
 
-            //using (var dbContext = new SteamDbContext(optionsBuilder.Options, appSettings))
-            //{
-            //    // Perform your insert operation
-            //    var dto = MapMergedDataToDto(md, dbContext);
-            //    //dbContext.Add(dto);
-            //    //await dbContext.SaveChangesAsync();
-            //    //dbContext.
-            //    dbContext.Entry(dto).State = EntityState.Modified;
-            //    await dbContext.SaveChangesAsync();
-            //}
+            List<SteamApp> steamApps = GetSteamAppsFromCsv();
 
-            //var appList = UpdateGetAppList();
-            //Console.WriteLine("App list successfully updated");
+            using (var dbContext = new SteamDbContext(optionsBuilder.Options, appSettings))
+            {
+                int operationCounter = 0;
+                var stopwatch = new Stopwatch();
+                stopwatch.Start();
 
-            var appList = GetSteamAppsFromCsv();
+                foreach (var app in steamApps)
+                {
+                    try
+                    {
+                        dbContext.ChangeTracker.Clear();
 
-            var appDataList = GetAllAppData(appList);
-            WriteObjectsToFile(await appDataList, "AppDataList");
+                        var md = await GetAppData(app);
+                        operationCounter++;
 
-            // List<MergedData> dataList = ReadObjectsFromFile("AppDataList");
+                        if (operationCounter >= 200)
+                        {
+                            stopwatch.Stop();
+
+                            if (stopwatch.Elapsed < TimeSpan.FromMinutes(5))
+                            {
+                                // Calculate remaining time to wait
+                                var remainingTime = TimeSpan.FromMinutes(5) - stopwatch.Elapsed;
+
+                                Console.WriteLine($"Delaying for {remainingTime.TotalSeconds} seconds...");
+                                await Task.Delay(remainingTime);
+                            }
+
+                            // Reset the operation counter and stopwatch
+                            operationCounter = 0;
+                            stopwatch.Reset();
+                            stopwatch.Start();
+                        }
+
+                        if (md == null)
+                        {
+                            continue;
+                        }
+
+                        var dto = MapMergedDataToDto(md, dbContext);
+                        dbContext.Add(dto);
+                        await dbContext.SaveChangesAsync();
+                        addCounter++;
+                        Console.WriteLine($"{addCounter}/{addCounter + skipCounter}. {app.Name} added to the database...");
+                    }
+                    catch (Exception ex)
+                    {
+                        skipCounter++;
+                        Console.WriteLine($"Failure #{skipCounter}. {app.Name}({app.AppId}): {ex.Message}\n");
+                        dbContext.ChangeTracker.Clear();
+                        continue;
+                    }
+                }
+            }
+            Console.ReadLine();
+            //List<MergedData> mergedDataList = new ();
+
+            //// Change "YourFileName.json" to your desired output file name
+            //string fileName = "MergedDataList.json";
+            //await WriteBatchesToFile(steamApps, fileName);
+            //Console.WriteLine("Finished Writing...");
+            //var data = await ReadDataFromFile(fileName);
+            //Console.WriteLine("Finished Reading...");
+            //Console.ReadLine();
         }
+        #region Deprecated
+        public static async Task WriteBatchesToFile(List<SteamApp> appList, string fileName, int batchSize = 2)
+        {
+            string currentDirectory = Directory.GetCurrentDirectory();
+            string filePath = Path.Combine(currentDirectory, fileName);
+
+            using var streamWriter = new StreamWriter(filePath, append: true);
+
+            // If the file is empty, write the opening bracket of a JSON array.
+            if (new FileInfo(filePath).Length == 0)
+            {
+                await streamWriter.WriteAsync("[");
+            }
+
+            // Iterate through the app list in batches.
+            for (int i = 0; i < appList.Count; i += batchSize)
+            {
+                Console.WriteLine($"Processing batch {(i / batchSize) + 1} of {Math.Ceiling((double)appList.Count / batchSize)}...");
+
+                var batch = appList.Skip(i).Take(batchSize).ToList();
+
+                // Fetch data for each app in the batch sequentially.
+                Console.WriteLine("Fetching data for apps in current batch...");
+                List<MergedData> results = new List<MergedData>();
+                foreach (var app in batch)
+                {
+                    var result = await GetAppData(app);
+                    if (result != null)
+                    {
+                        results.Add(result);
+                    }
+                }
+
+                // Serialize the valid results to a JSON string.
+                var jsonString = JsonConvert.SerializeObject(results);
+
+                // If this is not the first batch, prepend a comma to the JSON string.
+                if (i > 0)
+                {
+                    jsonString = "," + jsonString;
+                }
+
+                // Remove the opening and closing brackets of the JSON array.
+                jsonString = jsonString.Substring(1, jsonString.Length - 2);
+
+                // Write the JSON string to the file.
+                await streamWriter.WriteAsync(jsonString);
+                Console.WriteLine("Data for current batch saved to file...");
+
+                // If this is not the last batch, wait for 2 minutes before proceeding to the next batch.
+                if (i + batchSize < appList.Count)
+                {
+                    Console.WriteLine("Waiting for 2 minutes before fetching the next batch...");
+                    await Task.Delay(TimeSpan.FromMinutes(2));
+                }
+            }
+
+            // Write the closing bracket of the JSON array.
+            await streamWriter.WriteAsync("]");
+            Console.WriteLine($"All data saved to {filePath}");
+        }
+
+        public static async Task<List<MergedData>> ReadDataFromFile(string fileName)
+        {
+            string currentDirectory = Directory.GetCurrentDirectory();
+            string filePath = Path.Combine(currentDirectory, fileName);
+
+            Console.WriteLine($"Reading data from {filePath}...");
+
+            // Read the file as a JSON string.
+            string jsonString = await File.ReadAllTextAsync(filePath);
+
+            // Deserialize the JSON string to a list of MergedData objects.
+            List<MergedData> dataList = JsonConvert.DeserializeObject<List<MergedData>>(jsonString);
+
+            Console.WriteLine($"Deserialized {dataList.Count} MergedData objects from {fileName}");
+
+            return dataList;
+        }
+        #endregion
         #region App List Methods
+        // Utility method to check if a string is in English
+        public static bool IsEnglish(string input)
+        {
+            // Regular expression pattern for matching English letters, digits, spaces, and common punctuation
+            string pattern = @"^[a-zA-Z0-9 .,;:'""!?@#$%^&*()-={}|<>]*$";
+
+            // Use regular expressions to check if the input matches the pattern
+            return Regex.IsMatch(input, pattern);
+        }
         // Gets the steam app list, updates the output file and returns the new List<SteamApp> object
         public static async Task<List<SteamApp>> UpdateGetAppList()
         {
@@ -91,7 +232,11 @@ namespace SteamAppDetailsToSQL
 
             JArray appsArray = (JArray)(jsonResponse["applist"]?["apps"] ?? throw new Exception("Failed to locate data within the JSON response."));
             List<SteamApp> appList = appsArray.ToObject<List<SteamApp>>() ?? throw new Exception("There was no object to store within the List.");
-            return appList;
+
+            // Filter the appList to include only English app names
+            List<SteamApp> englishApps = appList.Where(app => IsEnglish(app.Name)).ToList();
+
+            return englishApps;
         }
         // Writes Steam apps list to a CSV file.
         public static void SaveSteamAppsToCsv(List<SteamApp> apps, string filePath)
@@ -117,8 +262,9 @@ namespace SteamAppDetailsToSQL
                         continue; // Skip the line if it does not have at least two values.
                     }
 
-                    if (int.TryParse(values[0], out int appId) && !string.IsNullOrEmpty(values[1]))
+                    if (int.TryParse(values[0], out int appId))
                     {
+
                         string name = values[1].Trim(); // Trim any whitespace around the name.
                         SteamApp app = new(appId, name);
                         steamApps.Add(app);
@@ -214,36 +360,44 @@ namespace SteamAppDetailsToSQL
             return Host.CreateDefaultBuilder(args);
         }
         // Use to retrieve all app data and return a list of MergedData - takes a List<SteamApp>
-        public static async Task<List<MergedData>> GetAllAppData(List<SteamApp> appList)
+        public static async Task<MergedData?> GetAppData(SteamApp app)
         {
-            List<MergedData> appDataList = new();
-            foreach (var app in appList)
+            var details = await FetchAppDetailsAsync(app.AppId);
+
+            if(details == null)
             {
-                var details = await FetchAppDetailsAsync(app.AppId);
-                var reviews = await FetchAppReviewsAsync(app.AppId);
-                if (details != null && reviews != null)
-                {
-                    MergedData md = new(details, reviews);
-                    appDataList.Add(md);
-                    addCounter++;
-                    Console.WriteLine($"{addCounter}. {app.AppId}: {app.Name} added.");
-                }
-                else
-                {
-                    continue;
-                }
+                return null;
             }
-            return appDataList;
+            // If details content is null, return
+            if (!details.Success || details.Data == null)
+            {
+                return null;
+            }
+
+            var reviews = await FetchAppReviewsAsync(app.AppId);
+
+            if(reviews == null)
+            {
+                return null;
+            }
+            // If review content is null, return
+            if (reviews.Success == 0 || reviews.QuerySummary == null)
+            {
+                return null;
+            }
+
+            return new MergedData(details, reviews);
         }
-        public static void WriteObjectsToFile(List<MergedData> objects, string fileName)
+
+        public static void WriteObjectToFile(MergedData md, string fileName)
         {
             string currentDirectory = Directory.GetCurrentDirectory();
             string filePath = Path.Combine(currentDirectory, fileName);
 
-            var jsonString = JsonConvert.SerializeObject(objects);
-            File.WriteAllText(filePath, jsonString);
+            var jsonString = JsonConvert.SerializeObject(md);
+            File.AppendAllText(filePath, jsonString + Environment.NewLine); // appending JSON string to the existing file
 
-            Console.WriteLine($"Objects saved to {filePath}");
+            Console.WriteLine($"Object saved to {filePath}");
         }
 
         public static List<MergedData> ReadObjectsFromFile(string fileName)
@@ -408,7 +562,10 @@ namespace SteamAppDetailsToSQL
             if (detailsData.SupportedLanguages != null)
             {
                 dtoGame.GameLanguages = new List<DtoGameLanguage>();
-                var languages = detailsData.SupportedLanguages.Split(',');
+                // Splits language string by comma delimeter and trims whitespace
+                var languages = detailsData.SupportedLanguages.Split(',')
+                                                               .Select(language => language.Trim())
+                                                               .ToArray();
 
                 foreach (var language in languages)
                 {
@@ -1092,7 +1249,22 @@ namespace SteamAppDetailsToSQL
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
         {
-            throw new NotImplementedException();
+            // Cast the value to Requirements
+            var requirements = value as Requirements;
+
+            // Begin a new JSON object
+            writer.WriteStartObject();
+
+            // Write the Minimum property
+            writer.WritePropertyName("minimum");
+            serializer.Serialize(writer, requirements.Minimum);
+
+            // Write the Recommended property
+            writer.WritePropertyName("recommended");
+            serializer.Serialize(writer, requirements.Recommended);
+
+            // End the object
+            writer.WriteEndObject();
         }
     }
 

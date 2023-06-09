@@ -105,3 +105,4 @@ C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\Steam
 C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\SteamAppToSQL\obj\Debug\net6.0\SteamAppToSQL.pdb
 C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\SteamAppToSQL\obj\Debug\net6.0\SteamAppToSQL.genruntimeconfig.cache
 C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\SteamAppToSQL\obj\Debug\net6.0\ref\SteamAppToSQL.dll
+C:\Users\61424\Documents\GitHub\Steam-Tag-Based-Game-Recommendation-System\SteamAppToSQL\bin\Debug\net6.0\MoreLinq.dll

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "csB5vaPBmis39/YhiFFYsAOTgeiKyVlm/7H3OxmnVsreDAp7uLbFaUf7msVaW0q919IWVZMz8dA5YWhCDhFp3A==",
+  "dgSpecHash": "wutaa2erEQMMw5/9HConGs/Th08VRgid3kRmesDApV52ROKoj+FX/2z9pRPT5X5dfxua0k8izJLdydBU/yV1ug==",
   "success": true,
   "projectFilePath": "C:\\Users\\61424\\Documents\\GitHub\\Steam-Tag-Based-Game-Recommendation-System\\SteamAppToSQL\\SteamAppToSQL.csproj",
   "expectedPackageFiles": [
@@ -72,6 +72,7 @@
     "C:\\Users\\61424\\.nuget\\packages\\microsoft.win32.registry\\5.0.0\\microsoft.win32.registry.5.0.0.nupkg.sha512",
     "C:\\Users\\61424\\.nuget\\packages\\microsoft.win32.systemevents\\5.0.0\\microsoft.win32.systemevents.5.0.0.nupkg.sha512",
     "C:\\Users\\61424\\.nuget\\packages\\mono.texttemplating\\2.2.1\\mono.texttemplating.2.2.1.nupkg.sha512",
+    "C:\\Users\\61424\\.nuget\\packages\\morelinq\\3.4.2\\morelinq.3.4.2.nupkg.sha512",
     "C:\\Users\\61424\\.nuget\\packages\\newtonsoft.json\\13.0.3\\newtonsoft.json.13.0.3.nupkg.sha512",
     "C:\\Users\\61424\\.nuget\\packages\\system.buffers\\4.5.1\\system.buffers.4.5.1.nupkg.sha512",
     "C:\\Users\\61424\\.nuget\\packages\\system.codedom\\4.4.0\\system.codedom.4.4.0.nupkg.sha512",

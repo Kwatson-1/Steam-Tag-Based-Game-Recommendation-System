@@ -22,7 +22,8 @@
           "Microsoft.Extensions.Configuration.UserSecrets": "7.0.0",
           "Microsoft.Extensions.DependencyInjection": "7.0.0",
           "Microsoft.Extensions.Hosting": "7.0.1",
-          "Newtonsoft.Json": "13.0.3"
+          "Newtonsoft.Json": "13.0.3",
+          "morelinq": "3.4.2"
         },
         "runtime": {
           "SteamAppToSQL.dll": {}
@@ -874,6 +875,14 @@
           }
         }
       },
+      "morelinq/3.4.2": {
+        "runtime": {
+          "lib/net6.0/MoreLinq.dll": {
+            "assemblyVersion": "3.4.2.0",
+            "fileVersion": "3.4.2.0"
+          }
+        }
+      },
       "Newtonsoft.Json/13.0.3": {
         "runtime": {
           "lib/net6.0/Newtonsoft.Json.dll": {
@@ -1649,6 +1658,13 @@
       "sha512": "sha512-KZYeKBET/2Z0gY1WlTAK7+RHTl7GSbtvTLDXEZZojUdAPqpQNDL6tHv7VUpqfX5VEOh+uRGKaZXkuD253nEOBQ==",
       "path": "mono.texttemplating/2.2.1",
       "hashPath": "mono.texttemplating.2.2.1.nupkg.sha512"
+    },
+    "morelinq/3.4.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-nKdpt7Ai+xQO8PZ0YFTn13INGJcKO0Nx65kO/ut0zaDirRo6d7atedmW2l68YB3x7U4pOqTLdMfYsBys8KxA1Q==",
+      "path": "morelinq/3.4.2",
+      "hashPath": "morelinq.3.4.2.nupkg.sha512"
     },
     "Newtonsoft.Json/13.0.3": {
       "type": "package",
