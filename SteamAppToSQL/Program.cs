@@ -3,16 +3,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using MoreLinq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text.RegularExpressions;
-using MoreLinq;
-using System.Diagnostics.Metrics;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
-using System.Diagnostics;
 /* 
 Developer: Kyle Watson
 Date: 18/04/2023
@@ -33,7 +31,7 @@ namespace SteamAppDetailsToSQL
     {
         static int skipCounter = 0;
         static int addCounter = 0;
-        static int bucketCounter = 0;
+
         public static async Task Main(string[] args)
         {
             IConfiguration configuration = CreateConfiguration();
@@ -58,6 +56,7 @@ namespace SteamAppDetailsToSQL
             using (var dbContext = new SteamDbContext(optionsBuilder.Options, appSettings))
             {
                 int operationCounter = 0;
+                // Stopwatch for limiting api request rates
                 var stopwatch = new Stopwatch();
                 stopwatch.Start();
 
@@ -70,7 +69,7 @@ namespace SteamAppDetailsToSQL
                         var md = await GetAppData(app);
                         operationCounter++;
 
-                        if (operationCounter >= 200)
+                        if (operationCounter >= 125)
                         {
                             stopwatch.Stop();
 
@@ -98,7 +97,7 @@ namespace SteamAppDetailsToSQL
                         dbContext.Add(dto);
                         await dbContext.SaveChangesAsync();
                         addCounter++;
-                        Console.WriteLine($"{addCounter}/{addCounter + skipCounter}. {app.Name} added to the database...");
+                        Console.WriteLine($"{addCounter}/{addCounter + skipCounter}. {app.Name}({app.AppId}): added to the database...");
                     }
                     catch (Exception ex)
                     {
@@ -110,15 +109,6 @@ namespace SteamAppDetailsToSQL
                 }
             }
             Console.ReadLine();
-            //List<MergedData> mergedDataList = new ();
-
-            //// Change "YourFileName.json" to your desired output file name
-            //string fileName = "MergedDataList.json";
-            //await WriteBatchesToFile(steamApps, fileName);
-            //Console.WriteLine("Finished Writing...");
-            //var data = await ReadDataFromFile(fileName);
-            //Console.WriteLine("Finished Reading...");
-            //Console.ReadLine();
         }
         #region Deprecated
         public static async Task WriteBatchesToFile(List<SteamApp> appList, string fileName, int batchSize = 2)
@@ -198,6 +188,17 @@ namespace SteamAppDetailsToSQL
             Console.WriteLine($"Deserialized {dataList.Count} MergedData objects from {fileName}");
 
             return dataList;
+        }
+
+        public static void WriteObjectToFile(MergedData md, string fileName)
+        {
+            string currentDirectory = Directory.GetCurrentDirectory();
+            string filePath = Path.Combine(currentDirectory, fileName);
+
+            var jsonString = JsonConvert.SerializeObject(md);
+            File.AppendAllText(filePath, jsonString + Environment.NewLine); // appending JSON string to the existing file
+
+            Console.WriteLine($"Object saved to {filePath}");
         }
         #endregion
         #region App List Methods
@@ -387,17 +388,6 @@ namespace SteamAppDetailsToSQL
             }
 
             return new MergedData(details, reviews);
-        }
-
-        public static void WriteObjectToFile(MergedData md, string fileName)
-        {
-            string currentDirectory = Directory.GetCurrentDirectory();
-            string filePath = Path.Combine(currentDirectory, fileName);
-
-            var jsonString = JsonConvert.SerializeObject(md);
-            File.AppendAllText(filePath, jsonString + Environment.NewLine); // appending JSON string to the existing file
-
-            Console.WriteLine($"Object saved to {filePath}");
         }
 
         public static List<MergedData> ReadObjectsFromFile(string fileName)
